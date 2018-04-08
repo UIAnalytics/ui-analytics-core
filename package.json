@@ -5,14 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "rollup -c -w",
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "examples": "http-serve ./"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/UIAnalytics/ui-analytics-core.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "UIAnalytics.com",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/UIAnalytics/ui-analytics-core/issues"
@@ -22,6 +23,7 @@
     "babel-core": "^6.26.0",
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-preset-env": "^1.6.1",
+    "http-serve": "^1.0.1",
     "rollup": "^0.57.1",
     "rollup-plugin-babel": "^3.0.3",
     "rollup-plugin-json": "^2.3.0",

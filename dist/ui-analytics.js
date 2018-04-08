@@ -4,8 +4,14 @@
 
   var version = "0.0.1";
 
+  var integration = function integration(name, options) {};
+
+  var track = function track(eventName, eventProperties) {};
+
   window.UIAnalytics = {
-      version: version
+      version: version,
+      track: track,
+      integration: integration
   };
 
 }());
