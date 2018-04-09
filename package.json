@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "rollup -c -w",
     "build": "rollup -c",
-    "examples": "http-serve ./"
+    "examples": "http-serve ./",
+    "test": "jest",
+    "test-watch": "jest --watch"
   },
   "repository": {
     "type": "git",
@@ -21,9 +23,12 @@
   "homepage": "https://github.com/UIAnalytics/ui-analytics-core#readme",
   "devDependencies": {
     "babel-core": "^6.26.0",
+    "babel-jest": "^22.4.3",
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-preset-env": "^1.6.1",
     "http-serve": "^1.0.1",
+    "jest": "^22.4.3",
+    "regenerator-runtime": "^0.11.1",
     "rollup": "^0.57.1",
     "rollup-plugin-babel": "^3.0.3",
     "rollup-plugin-json": "^2.3.0",
