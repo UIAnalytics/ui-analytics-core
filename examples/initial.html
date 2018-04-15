@@ -15,7 +15,31 @@
 
     <script src="/dist/ui-analytics.js"></script>
     <script>
+      UIAnalytics.integration('local-integration', {
+        initialize: function(){
+          return new Promise(function(resolve){
+            setTimeout(resolve, 200);
+          });
+        },
 
+        track: function(track){
+          console.log('local-integration track:', track);
+          return new Promise(function(resolve){
+            setTimeout(resolve, 200);
+          });
+        }
+      });
+    </script>
+
+    <script>
+
+      document.addEventListener('DOMContentLoaded', function(){
+        UIAnalytics.track('DOMContentLoaded', { time: Date.now() });
+      })
+
+      document.addEventListener('click', function(event){
+        UIAnalytics.track('Document Clicked');
+      });
     </script>
   </body>
 </html>
