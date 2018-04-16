@@ -2,7 +2,20 @@ import { track } from '../src/tracking'
 import integration from '../src/integration'
 import { clear as clearState } from '../src/state'
 
-describe.only('UIAnalytics.integration', ()=>{
+describe('UIAnalytics.integration', ()=>{
+
+  const trackObjectWithFields = (fields)=>{
+    return Object.assign({
+      type: 'track',
+      name: '',
+      properties: {},
+      trackOptions: {},
+      integrationWhitelist: ['all'],
+      integrationBlacklist: [],
+      runTransform: expect.any(Function)
+    }, fields);
+  };
+
   beforeEach(() => {
     clearState();
   });
@@ -19,17 +32,16 @@ describe.only('UIAnalytics.integration', ()=>{
 
           // this makes sure we can send more than one and the order is maintained
           if(trackCount === 1){
-            expect(track.name).toEqual('eventA');
-            expect(track.properties).toEqual({propA: true});
-            expect(track.trackOptions).toEqual({});
-            expect(track.integrationWhitelist).toEqual(['all']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({name:'eventA', properties: {propA: true} }));
           }else {
-            expect(track.name).toEqual('eventB');
-            expect(track.properties).toEqual({propB: false});
-            expect(track.trackOptions).toEqual({ integrationWhitelist: ['a'] });
-            expect(track.integrationWhitelist).toEqual(['a']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({
+              name:'eventB',
+              properties: {propB: false},
+              integrationWhitelist: ['a'],
+              trackOptions: {
+                integrationWhitelist: ['a']
+              }
+            }));
           }
 
           resolve();
@@ -48,7 +60,7 @@ describe.only('UIAnalytics.integration', ()=>{
   });
 
 
-  test.skip('creating an integration and consuming track calls that happen after it has initialized', (done) => {
+  test('creating an integration and consuming track calls that happen after it has initialized', (done) => {
 
     let trackCount = 0;
 
@@ -60,17 +72,16 @@ describe.only('UIAnalytics.integration', ()=>{
 
           // this makes sure we can send more than one and the order is maintained
           if(trackCount === 1){
-            expect(track.name).toEqual('eventA');
-            expect(track.properties).toEqual({propA: true});
-            expect(track.trackOptions).toEqual({});
-            expect(track.integrationWhitelist).toEqual(['all']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({name:'eventA', properties: {propA: true} }));
           }else {
-            expect(track.name).toEqual('eventB');
-            expect(track.properties).toEqual({propB: false});
-            expect(track.trackOptions).toEqual({ integrationWhitelist: ['a'] });
-            expect(track.integrationWhitelist).toEqual(['a']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({
+              name:'eventB',
+              properties: {propB: false},
+              integrationWhitelist: ['a'],
+              trackOptions: {
+                integrationWhitelist: ['a']
+              }
+            }));
           }
 
           resolve();

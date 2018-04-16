@@ -40,6 +40,13 @@
       document.addEventListener('click', function(event){
         UIAnalytics.track('Document Clicked');
       });
+
+      UIAnalytics.transform((track)=>{
+        track.properties = Object.assign({}, track.properties, {
+          hostname: window.location.hostname
+        });
+        return track;
+      });
     </script>
   </body>
 </html>

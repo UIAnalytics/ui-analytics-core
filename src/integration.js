@@ -1,11 +1,7 @@
-'use strict';
-
 import { isString, isObject } from './utils/validate'
 import * as logger from './utils/logger'
 import * as state from './state'
 import * as tracking from './tracking'
-
-const _integrations = [];
 
 class Integration {
   constructor(name, options){
@@ -21,16 +17,8 @@ class Integration {
 
       // all of the track calls captured before this point,
       // make sure they should go to this integration, and track them
-      state.get().tracks.forEach((track)=>{
-        if((track.integrationWhitelist.includes('all') || track.integrationWhitelist.includes(this.name)) &&
-          !track.integrationBlacklist.includes(this.name)
-        ){
-          try{
-            this.track(track).catch(logger.error);
-          }catch(e){
-            logger.error(e)
-          }
-        }
+      state.get().tracks.forEach((trackInstance)=>{
+        tracking.runTrackForIntegration(trackInstance, this);
       });
     }).catch((e)=>{
       logger.error(e)
@@ -41,7 +29,12 @@ class Integration {
 class IntegrationInterface {
   constructor(integration){
     this.name = integration.name;
+
+    // TODO: as a user I would like to add integration('int').on('ready') and track
+    // before the integration is defined. This allows me to define callbacks and actions
+    // before the integration as been added
     this.on = (eventName, cb)=>{};
+
     this.options = ()=>{};
     this.getIdentifiers = ()=>{};
     this.createGroup = ()=>{};
@@ -72,14 +65,10 @@ export default function integration(name, options){
   const currentIntegrations = state.get().integrations;
 
   if(isObject(options)){
-
-
     selectedIntegration = new Integration(name, options);
-
     state.set({
       integrations: currentIntegrations.concat([selectedIntegration])
     });
-
   }else {
     selectedIntegration = currentIntegrations.filter( i => i.name === name )[0];
   }

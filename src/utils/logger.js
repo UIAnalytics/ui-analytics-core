@@ -1,7 +1,9 @@
 'use strict';
 
-// TODO: Add check that console is actually available (for cases where it is not like private mode on ios)
+// TODO: set this default to error and have it configurable
+let _logLevel = 'verbose';
 
+// TODO: Add check that console is actually available (for cases where it is not like private mode on ios)
 const noop = ()=>{};
 const console = window.console || {
   error: noop,
@@ -10,11 +12,21 @@ const console = window.console || {
 };
 
 export const error = (...args)=>{
-  console.error(...args)
+  if(_logLevel === 'verbose' || _logLevel === 'error'){
+    console.error(...args)
+  }
 };
 export const log = (...args)=>{
-  console.log(...args)
+  if(_logLevel === 'verbose'){
+    console.log(...args)
+  }
 };
 export const info = (...args)=>{
-  console.info(...args)
+  if(_logLevel === 'verbose' || _logLevel === 'info'){
+    console.info(...args)
+  }
+};
+
+export const setLogLevel = (level='')=>{
+  _logLevel = level;
 };
