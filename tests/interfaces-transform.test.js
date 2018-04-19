@@ -122,17 +122,19 @@ describe('UIAnalytics.transform', ()=>{
 
           // this makes sure we can send more than one and the order is maintained
           if(trackCount === 1){
-            expect(track.name).toEqual('eventA');
-            expect(track.properties).toEqual({propA: false});
-            expect(track.trackOptions).toEqual({});
-            expect(track.integrationWhitelist).toEqual(['all']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({
+              name: 'eventA',
+              properties: {propA: false}
+            }));
           }else {
-            expect(track.name).toEqual('eventB');
-            expect(track.properties).toEqual({propB: false, propA: true});
-            expect(track.trackOptions).toEqual({ integrationWhitelist: ['a'] });
-            expect(track.integrationWhitelist).toEqual(['a']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({
+              name: 'eventB',
+              properties: {propA: true, propB: false},
+              integrationWhitelist: ['a'],
+              trackOptions: {
+                integrationWhitelist: ['a']
+              }
+            }));
           }
 
           resolve();
@@ -172,17 +174,19 @@ describe('UIAnalytics.transform', ()=>{
 
           // this makes sure we can send more than one and the order is maintained
           if(trackCount === 1){
-            expect(track.name).toEqual('eventA');
-            expect(track.properties).toEqual({propA: false});
-            expect(track.trackOptions).toEqual({});
-            expect(track.integrationWhitelist).toEqual(['all']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({
+              name: 'eventA',
+              properties: {propA: false}
+            }));
           }else {
-            expect(track.name).toEqual('eventB');
-            expect(track.properties).toEqual({propB: false, propA: true});
-            expect(track.trackOptions).toEqual({ integrationWhitelist: ['a'] });
-            expect(track.integrationWhitelist).toEqual(['a']);
-            expect(track.integrationBlacklist).toEqual([]);
+            expect(track).toEqual(trackObjectWithFields({
+              name: 'eventB',
+              properties: {propA: true, propB: false},
+              integrationWhitelist: ['a'],
+              trackOptions: {
+                integrationWhitelist: ['a']
+              }
+            }));
           }
 
           resolve();

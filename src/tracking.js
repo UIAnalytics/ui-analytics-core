@@ -1,7 +1,6 @@
 import * as logger from './utils/logger'
 import { isObject, isString } from './utils/validate'
 import * as state from './state'
-import { runAllForTrack as runAllTransforms } from './transform'
 
 
 class Track {
@@ -85,12 +84,20 @@ const runTrackForIntegration = (trackInstance, integration)=>{
   // make sure it's allowed by whitelist and not dissallowed by blacklist
   if((trackInstance.integrationWhitelist.includes('all') || trackInstance.integrationWhitelist.includes(integration.name)) &&
     !trackInstance.integrationBlacklist.includes('all') && !trackInstance.integrationBlacklist.includes(integration.name)){
-    try{
-      integration.track(trackInstance).catch(logger.error);
-    }catch(e){
-      logger.error(e)
+
+    if(integration.track){
+      try{
+        const trackResult = integration.track(trackInstance);
+        if(trackResult && trackResult.catch){
+          trackResult.catch(logger.error)
+        }
+      }catch(e){
+        logger.error(e)
+      }
+    }else {
+      logger.error(`integration: "${integration.name}" is initialized but does not have a track method`)
     }
   }
 }
 
-export { track, runTrackForIntegration};
+export { track, runTrackForIntegration };

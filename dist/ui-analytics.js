@@ -4,7 +4,35 @@
 
   var version = "0.0.1";
 
-  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+    return typeof obj;
+  } : function (obj) {
+    return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+  };
+
+  var classCallCheck = function (instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  };
+
+  var createClass = function () {
+    function defineProperties(target, props) {
+      for (var i = 0; i < props.length; i++) {
+        var descriptor = props[i];
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
+      }
+    }
+
+    return function (Constructor, protoProps, staticProps) {
+      if (protoProps) defineProperties(Constructor.prototype, protoProps);
+      if (staticProps) defineProperties(Constructor, staticProps);
+      return Constructor;
+    };
+  }();
 
   var isString = function isString(s) {
     return !!s && typeof s === 'string';
@@ -44,11 +72,11 @@
 
   var globalState = defaultState();
 
-  function set(newState) {
+  function set$1(newState) {
     globalState = Object.assign({}, globalState, newState);
   }
 
-  function get() {
+  function get$1() {
     return globalState;
   }
 
@@ -57,32 +85,15 @@
   }
 
   var state = /*#__PURE__*/Object.freeze({
-    set: set,
-    get: get,
+    set: set$1,
+    get: get$1,
     clear: clear
   });
-
-  var transform = function transform(transformCb) {
-    if (!isFunction(transformCb)) {
-      error('transform was called without a function as the first argument');
-      return;
-    }
-
-    set({
-      transforms: get().transforms.concat([transformCb])
-    });
-
-    get().tracks.forEach(function (trackInstance) {
-      trackInstance.runTransform(transformCb);
-    });
-  };
-
-  function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
   var Track = function Track(eventType, eventName, eventProperties, trackOptions) {
     var _this = this;
 
-    _classCallCheck(this, Track);
+    classCallCheck(this, Track);
 
     this.type = eventType;
     this.name = eventName.trim();
@@ -139,15 +150,15 @@
     var trackInstance = new Track('track', eventName, eventProperties, trackOptions);
 
     // Run all transforms before calling the
-    get().transforms.forEach(trackInstance.runTransform);
+    get$1().transforms.forEach(trackInstance.runTransform);
 
     // Push to the global state so that new integrations can consume it later
-    set({
-      tracks: get().tracks.concat([trackInstance])
+    set$1({
+      tracks: get$1().tracks.concat([trackInstance])
     });
 
     // All currently read integrations need to recieve this event
-    get().integrations.forEach(function (integration) {
+    get$1().integrations.forEach(function (integration) {
       if (integration.ready) {
         runTrackForIntegration(trackInstance, integration);
       }
@@ -161,45 +172,83 @@
 
     // make sure it's allowed by whitelist and not dissallowed by blacklist
     if ((trackInstance.integrationWhitelist.includes('all') || trackInstance.integrationWhitelist.includes(integration.name)) && !trackInstance.integrationBlacklist.includes('all') && !trackInstance.integrationBlacklist.includes(integration.name)) {
-      try {
-        integration.track(trackInstance).catch(error);
-      } catch (e) {
-        error(e);
+
+      if (integration.track) {
+        try {
+          var trackResult = integration.track(trackInstance);
+          if (trackResult && trackResult.catch) {
+            trackResult.catch(error);
+          }
+        } catch (e) {
+          error(e);
+        }
+      } else {
+        error('integration: "' + integration.name + '" is initialized but does not have a track method');
       }
     }
   };
 
-  function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+  var Integration = function () {
+    function Integration(name, options) {
+      var internalOptions = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+      classCallCheck(this, Integration);
 
-  var Integration = function Integration(name, options) {
-    var _this = this;
+      this.pendingDefinition = internalOptions.pendingDefinition || false;
 
-    _classCallCheck$1(this, Integration);
+      this.name = name;
+      this.options = options || {};
+      this.initialize = this.options.initialize;
+      this.track = this.options.track;
+      this.ready = false;
 
-    this.name = name;
-    this.options = options;
-    this.initialize = options.initialize;
-    this.track = options.track;
-    this.ready = false;
+      if (options) {
+        this.applyOptions(options);
+      }
+    }
 
-    // start initialization
-    this.initialize && this.initialize().then(function () {
-      _this.ready = true;
+    createClass(Integration, [{
+      key: 'applyOptions',
+      value: function applyOptions(options) {
+        var _this = this;
 
-      // all of the track calls captured before this point,
-      // make sure they should go to this integration, and track them
-      get().tracks.forEach(function (trackInstance) {
-        runTrackForIntegration(trackInstance, _this);
-      });
-    }).catch(function (e) {
-      error(e);
-    });
-  };
+        this.options = options || {};
+        this.initialize = this.options.initialize;
+        this.track = this.options.track;
+        this.ready = false;
+
+        // start initialization
+        // TODO: add a beforeeach that is promise based. I.e. the subscriptions will
+        // execute as standard functions but the wrapper around those executions will
+        // be promise based
+        if (this.initialize) {
+          try {
+            var initializeResult = this.initialize();
+
+            (initializeResult && initializeResult.then ? initializeResult : Promise.resolve()).then(function () {
+              _this.ready = true;
+
+              // all of the track calls captured before this point,
+              // make sure they should go to this integration, and track them
+              get$1().tracks.forEach(function (trackInstance) {
+                runTrackForIntegration(trackInstance, _this);
+              });
+            }).catch(function (e) {
+              error(e);
+            });
+          } catch (e) {
+            error(e);
+          }
+        }
+      }
+    }]);
+    return Integration;
+  }();
 
   var IntegrationInterface = function IntegrationInterface(integration) {
     var _this2 = this;
 
-    _classCallCheck$1(this, IntegrationInterface);
+    classCallCheck(this, IntegrationInterface);
+
 
     this.name = integration.name;
 
@@ -219,6 +268,7 @@
         error(e);
       }
     };
+
     // this.trackProduct = ()=>{
     //   // TODO: if no track product defined but there is a track send it straight there
     //   // This might get confusing as it is hard to handle the proper event naming
@@ -231,21 +281,34 @@
       return;
     }
 
-    var selectedIntegration = void 0;
-    var currentIntegrations = get().integrations;
+    var currentIntegrations = get$1().integrations;
+    var referencedIntegration = currentIntegrations.filter(function (i) {
+      return i.name === name;
+    })[0];
+    var tryingToConfigure = isObject(options);
 
-    if (isObject(options)) {
-      selectedIntegration = new Integration(name, options);
-      set({
-        integrations: currentIntegrations.concat([selectedIntegration])
-      });
+    if (referencedIntegration) {
+      // Upgrade the integration if it is still waiting to be defined
+      // If it's already defined, we will do nothing and log this message
+      if (tryingToConfigure && referencedIntegration.pendingDefinition) {
+        referencedIntegration.pendingDefinition = false;
+        referencedIntegration.applyOptions(options);
+      } else if (tryingToConfigure) {
+        error('integration ' + name + ' has already been defined and is attempting to be defined again');
+      }
     } else {
-      selectedIntegration = currentIntegrations.filter(function (i) {
-        return i.name === name;
-      })[0];
-    }
 
-    return new IntegrationInterface(selectedIntegration);
+      if (isObject(options)) {
+        referencedIntegration = new Integration(name, options);
+      } else {
+        referencedIntegration = new Integration(name, {}, { pendingDefinition: true });
+      }
+
+      set$1({
+        integrations: currentIntegrations.concat([referencedIntegration])
+      });
+    }
+    return new IntegrationInterface(referencedIntegration);
   }
 
   function integrations(integrationNames) {
@@ -260,6 +323,21 @@
       return integration(name);
     });
   }
+
+  var transform = function transform(transformCb) {
+    if (!isFunction(transformCb)) {
+      error('transform was called without a function as the first argument');
+      return;
+    }
+
+    set$1({
+      transforms: get$1().transforms.concat([transformCb])
+    });
+
+    get$1().tracks.forEach(function (trackInstance) {
+      trackInstance.runTransform(transformCb);
+    });
+  };
 
   window.UIAnalytics = {
       version: version,

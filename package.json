@@ -7,8 +7,8 @@
     "dev": "rollup -c -w",
     "build": "rollup -c",
     "examples": "http-serve ./",
-    "test": "jest",
-    "test-watch": "jest --watch"
+    "test": "jest --verbose",
+    "test-watch": "jest --watch --verbose"
   },
   "repository": {
     "type": "git",

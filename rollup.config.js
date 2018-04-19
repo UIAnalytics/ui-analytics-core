@@ -16,7 +16,8 @@ export default {
     resolve(),
     babel({
       // only transpile our source code
-      exclude: 'node_modules/**'
+      exclude: 'node_modules/**',
+      plugins: ['external-helpers']
     })
   ],
   watch: {
