@@ -11,7 +11,62 @@ class Integration {
     this.options = options || {};
     this.initialize = this.options.initialize;
     this.track = this.options.track;
+
     this.ready = false;
+    this.subscriptions = {};
+
+    this.subscribe = (topic, cb)=>{
+      const topicSubs = this.subscriptions[topic];
+      if(topicSubs && topicSubs.invokeImmediately){
+        this.invokeTopicCb(topic, cb);
+      }else if(topicSubs){
+        topicSubs.push(cb);
+      }else {
+        this.subscriptions[topic] = [cb];
+      }
+      return { _subscriptionCb: cb };
+    };
+
+    this.unsubscribe = (topic, subscribeReference)=>{
+      if(!topic || !subscribeReference || !subscribeReference._subscriptionCb){
+        // nothing to unsubscribe from
+        return;
+      }
+
+      const topicSubs = this.subscriptions[topic];
+      if(topicSubs){
+         this.subscriptions[topic] = topicSubs.filter((sub) =>{
+          return sub !== subscribeReference._subscriptionCb;
+        });
+      }
+    };
+
+    this.publish = (topic, data, options={})=>{
+
+      if(!topic){
+        return;
+      }
+
+      const topicSubs = this.subscriptions[topic];
+
+      if(Array.isArray(topicSubs)){
+        topicSubs.forEach(cb=>this.invokeTopicCb(topic, cb, data))
+      }
+
+      // add the flag that will make the subsequent
+      if(options.invokeNewSubs){
+        this.subscriptions[topic] = topicSubs ? this.subscriptions[topic] : [];
+        this.subscriptions[topic].invokeImmediately = true;
+
+        // TODO: evaluating the need for this
+        // this.subscriptions[topic].invokeData = data;
+      }
+    }
+
+    this.invokeTopicCb = (topic, cb, data)=>{
+      // TODO: add more useful information to call
+      cb(data);
+    };
 
     if(options){
       this.applyOptions(options);
@@ -40,10 +95,15 @@ class Integration {
           state.get().tracks.forEach((trackInstance)=>{
             tracking.runTrackForIntegration(trackInstance, this);
           });
+
+          this.publish('ready', null, { invokeNewSubs: true });
+
         }).catch((e)=>{
-          logger.error(e)
+          this.publish('init-error', { error: e });
+          logger.error(e);
         });
       }catch(e){
+        this.publish('init-error', { error: e });
         logger.error(e);
       }
     }
@@ -55,10 +115,8 @@ class IntegrationInterface {
 
     this.name = integration.name;
 
-    // TODO: as a user I would like to add integration('int').on('ready') and track
-    // before the integration is defined. This allows me to define callbacks and actions
-    // before the integration as been added
-    this.on = (eventName, cb)=>{};
+    this.on = integration.subscribe;
+    this.off = integration.unsubscribe;
 
     this.options = ()=>{};
     this.getIdentifiers = ()=>{};

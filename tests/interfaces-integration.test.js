@@ -1,6 +1,7 @@
 import { track } from '../src/tracking'
 import integration from '../src/integration'
 import { clear as clearState, get as getState } from '../src/state'
+import { setLogLevel } from '../src/utils/logger'
 
 describe('UIAnalytics.integration', ()=>{
 
@@ -18,6 +19,7 @@ describe('UIAnalytics.integration', ()=>{
 
   beforeEach(() => {
     clearState();
+    setLogLevel(/*noLogs*/);
   });
 
   test('creating an integration and consuming track calls that happened before it has initialized', (done) => {
@@ -59,7 +61,6 @@ describe('UIAnalytics.integration', ()=>{
     track('eventD', {propD: false}, {integrationBlacklist: ['a']});
   });
 
-
   test('creating an integration and consuming track calls that happen after it has initialized', (done) => {
 
     let trackCount = 0;
@@ -99,7 +100,7 @@ describe('UIAnalytics.integration', ()=>{
       track('eventA', {propA: true});
       track('eventC', {propC: false}, {integrationWhitelist: ['c']});
       track('eventB', {propB: false}, {integrationWhitelist: ['a']});
-    },50)
+    },50);
 
   });
 
@@ -118,7 +119,6 @@ describe('UIAnalytics.integration', ()=>{
     track('eventA', {propA: true});
     track('eventC', {propC: false}, {integrationWhitelist: ['c']});
     track('eventB', {propB: false}, {integrationWhitelist: ['a']});
-
 
     setTimeout(()=>{
 
@@ -158,7 +158,7 @@ describe('UIAnalytics.integration', ()=>{
 
   });
 
-  test('create an extension with an synchronous intitialization and tracking', (done) => {
+  test('create an integration with an synchronous intitialization and tracking', (done) => {
 
     let trackCount = 0;
 
@@ -197,4 +197,82 @@ describe('UIAnalytics.integration', ()=>{
     }, 10);
 
   });
+
+  describe('subscribe, recieve, and unsubscribe from integration events', ()=>{
+
+    test('get integration ready notifications', ()=>{
+
+      const callbackMock1 = jest.fn();
+      const callbackMock2 = jest.fn();
+
+      integration('int').on('ready', callbackMock1);
+      integration('int-2').on('ready', callbackMock2);
+
+      const unsub1 = integration('int').on('ready', callbackMock1);
+
+      setTimeout(()=>{
+
+        integration('not-int', {
+          initialize: ()=> {},
+          track: ()=>{}
+        });
+
+        const unsub2 = integration('int').on('ready', callbackMock1);
+
+        integration('int').off('ready', unsub2);
+        integration('int').off('ready', unsub1);
+
+        integration('int', {
+          initialize: ()=> {},
+          track: ()=>{}
+        });
+
+        integration('int-2', {
+          initialize: ()=>{
+            return Promise.resolve();
+          },
+          track: ()=>{}
+        });
+
+        integration('int').on('ready', callbackMock1);
+        integration('int-2').on('ready', callbackMock2);
+        integration('int').on('ready', callbackMock1);
+
+        expect(callbackMock1.mock.calls).toHaveLength(4);
+        expect(callbackMock2.mock.calls).toHaveLength(2);
+      }, 10);
+    });
+
+    test('get integration error notifications', ()=>{
+      const callbackMock1 = jest.fn();
+      const callbackMock2 = jest.fn();
+
+      integration('int').on('init-error', callbackMock1);
+      integration('int-2').on('init-error', callbackMock2);
+      integration('int').on('init-error', callbackMock1);
+
+      integration('int', {
+        initialize: ()=> {
+          throw 'some sync error happend'
+        }
+      });
+
+      integration('int-2', {
+        initialize: ()=>{
+          return Promise.reject('some async error happend');
+        }
+      });
+
+      expect(callbackMock1.mock.calls).toHaveLength(2);
+      expect(callbackMock1.mock.calls[0][0]).toEqual({ error: 'some sync error happend'})
+      expect(callbackMock1.mock.calls[1][0]).toEqual({ error: 'some sync error happend'})
+
+      setImmediate(()=>{
+        expect(callbackMock2.mock.calls).toHaveLength(1);
+        expect(callbackMock2.mock.calls[0][0]).toEqual({ error: 'some async error happend'})
+      })
+    });
+
+  });
+
 });

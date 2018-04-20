@@ -190,6 +190,8 @@
 
   var Integration = function () {
     function Integration(name, options) {
+      var _this = this;
+
       var internalOptions = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
       classCallCheck(this, Integration);
 
@@ -199,7 +201,66 @@
       this.options = options || {};
       this.initialize = this.options.initialize;
       this.track = this.options.track;
+
       this.ready = false;
+      this.subscriptions = {};
+
+      this.subscribe = function (topic, cb) {
+        var topicSubs = _this.subscriptions[topic];
+        if (topicSubs && topicSubs.invokeImmediately) {
+          _this.invokeTopicCb(topic, cb);
+        } else if (topicSubs) {
+          topicSubs.push(cb);
+        } else {
+          _this.subscriptions[topic] = [cb];
+        }
+        return { _subscriptionCb: cb };
+      };
+
+      this.unsubscribe = function (topic, subscribeReference) {
+        if (!topic || !subscribeReference || !subscribeReference._subscriptionCb) {
+          // nothing to unsubscribe from
+          return;
+        }
+
+        var topicSubs = _this.subscriptions[topic];
+        if (topicSubs) {
+          _this.subscriptions[topic] = topicSubs.filter(function (sub) {
+            return sub !== subscribeReference._subscriptionCb;
+          });
+        }
+      };
+
+      this.publish = function (topic, data) {
+        var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
+
+        if (!topic) {
+          return;
+        }
+
+        var topicSubs = _this.subscriptions[topic];
+
+        if (Array.isArray(topicSubs)) {
+          topicSubs.forEach(function (cb) {
+            return _this.invokeTopicCb(topic, cb, data);
+          });
+        }
+
+        // add the flag that will make the subsequent
+        if (options.invokeNewSubs) {
+          _this.subscriptions[topic] = topicSubs ? _this.subscriptions[topic] : [];
+          _this.subscriptions[topic].invokeImmediately = true;
+
+          // TODO: evaluating the need for this
+          // this.subscriptions[topic].invokeData = data;
+        }
+      };
+
+      this.invokeTopicCb = function (topic, cb, data) {
+        // TODO: add more useful information to call
+        cb(data);
+      };
 
       if (options) {
         this.applyOptions(options);
@@ -209,7 +270,7 @@
     createClass(Integration, [{
       key: 'applyOptions',
       value: function applyOptions(options) {
-        var _this = this;
+        var _this2 = this;
 
         this.options = options || {};
         this.initialize = this.options.initialize;
@@ -225,17 +286,21 @@
             var initializeResult = this.initialize();
 
             (initializeResult && initializeResult.then ? initializeResult : Promise.resolve()).then(function () {
-              _this.ready = true;
+              _this2.ready = true;
 
               // all of the track calls captured before this point,
               // make sure they should go to this integration, and track them
               get$1().tracks.forEach(function (trackInstance) {
-                runTrackForIntegration(trackInstance, _this);
+                runTrackForIntegration(trackInstance, _this2);
               });
+
+              _this2.publish('ready', null, { invokeNewSubs: true });
             }).catch(function (e) {
+              _this2.publish('init-error', { error: e });
               error(e);
             });
           } catch (e) {
+            this.publish('init-error', { error: e });
             error(e);
           }
         }
@@ -245,17 +310,15 @@
   }();
 
   var IntegrationInterface = function IntegrationInterface(integration) {
-    var _this2 = this;
+    var _this3 = this;
 
     classCallCheck(this, IntegrationInterface);
 
 
     this.name = integration.name;
 
-    // TODO: as a user I would like to add integration('int').on('ready') and track
-    // before the integration is defined. This allows me to define callbacks and actions
-    // before the integration as been added
-    this.on = function (eventName, cb) {};
+    this.on = integration.subscribe;
+    this.off = integration.unsubscribe;
 
     this.options = function () {};
     this.getIdentifiers = function () {};
@@ -263,7 +326,7 @@
 
     this.track = function (trackName, trackProperties, trackOptions) {
       try {
-        track(trackName, trackProperties, Object.assign({}, trackOptions, { integrationWhitelist: [_this2.name] }));
+        track(trackName, trackProperties, Object.assign({}, trackOptions, { integrationWhitelist: [_this3.name] }));
       } catch (e) {
         error(e);
       }
