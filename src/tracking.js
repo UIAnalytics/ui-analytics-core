@@ -70,7 +70,7 @@ const track = (name, properties, trackOptions) => {
 
   // All currently read integrations need to recieve this event
   state.get().integrations.forEach((integration)=>{
-    if(integration.ready){
+    if(integration.isReady()){
       runTrackForIntegration(trackInstance, integration)
     }
   });

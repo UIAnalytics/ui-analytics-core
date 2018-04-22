@@ -3,7 +3,7 @@ import integration from '../src/integration'
 import { clear as clearState, get as getState } from '../src/state'
 import { setLogLevel } from '../src/utils/logger'
 
-describe('UIAnalytics.integration', ()=>{
+describe.only('UIAnalytics.integration', ()=>{
 
   const trackObjectWithFields = (fields)=>{
     return Object.assign({
@@ -198,58 +198,63 @@ describe('UIAnalytics.integration', ()=>{
 
   });
 
-  describe('subscribe, recieve, and unsubscribe from integration events', ()=>{
+  describe('query, subscribe, recieve, and unsubscribe from integration status changes', ()=>{
 
-    test('get integration ready notifications', ()=>{
+    test('get integration initialization state change notifications', ()=>{
 
       const callbackMock1 = jest.fn();
       const callbackMock2 = jest.fn();
+      const callbackMock3 = jest.fn();
+      const callbackMock4 = jest.fn();
 
       integration('int').on('ready', callbackMock1);
       integration('int-2').on('ready', callbackMock2);
+      integration('int').on('before-init', callbackMock3);
+      integration('int-2').on('before-init', callbackMock4);
 
       const unsub1 = integration('int').on('ready', callbackMock1);
 
-      setTimeout(()=>{
+      integration('not-int', {
+        initialize: ()=> {},
+        track: ()=>{}
+      });
 
-        integration('not-int', {
-          initialize: ()=> {},
-          track: ()=>{}
-        });
+      const unsub2 = integration('int').on('ready', callbackMock1);
 
-        const unsub2 = integration('int').on('ready', callbackMock1);
+      integration('int').off('ready', unsub2);
+      integration('int').off('ready', unsub1);
 
-        integration('int').off('ready', unsub2);
-        integration('int').off('ready', unsub1);
+      integration('int', {
+        initialize: ()=> {},
+        track: ()=>{}
+      });
 
-        integration('int', {
-          initialize: ()=> {},
-          track: ()=>{}
-        });
+      integration('int-2', {
+        initialize: ()=>{
+          return Promise.resolve();
+        },
+        track: ()=>{}
+      });
 
-        integration('int-2', {
-          initialize: ()=>{
-            return Promise.resolve();
-          },
-          track: ()=>{}
-        });
-
+      return Promise.resolve().then(()=>{
         integration('int').on('ready', callbackMock1);
         integration('int-2').on('ready', callbackMock2);
         integration('int').on('ready', callbackMock1);
 
-        expect(callbackMock1.mock.calls).toHaveLength(4);
+        expect(callbackMock1.mock.calls).toHaveLength(3);
         expect(callbackMock2.mock.calls).toHaveLength(2);
-      }, 10);
+        expect(callbackMock3.mock.calls).toHaveLength(1);
+        expect(callbackMock4.mock.calls).toHaveLength(1);
+      })
     });
 
-    test('get integration error notifications', ()=>{
+    test('get integration error notifications', (done)=>{
       const callbackMock1 = jest.fn();
       const callbackMock2 = jest.fn();
 
-      integration('int').on('init-error', callbackMock1);
-      integration('int-2').on('init-error', callbackMock2);
-      integration('int').on('init-error', callbackMock1);
+      integration('int').on('error', callbackMock1);
+      integration('int-2').on('error', callbackMock2);
+      integration('int').on('error', callbackMock1);
 
       integration('int', {
         initialize: ()=> {
@@ -270,9 +275,63 @@ describe('UIAnalytics.integration', ()=>{
       setImmediate(()=>{
         expect(callbackMock2.mock.calls).toHaveLength(1);
         expect(callbackMock2.mock.calls[0][0]).toEqual({ error: 'some async error happend'})
+        done();
       })
     });
 
+    test('query integration ready state and status', (done)=>{
+
+      expect(integration('int').isReady()).toEqual(false);
+      expect(integration('int-2').isReady()).toEqual(false);
+      expect(integration('int-3').isReady()).toEqual(false);
+      expect(integration('int-4').isReady()).toEqual(false);
+
+      expect(integration('int').status()).toEqual('pending-definition');
+      expect(integration('int-2').status()).toEqual('pending-definition');
+      expect(integration('int-3').status()).toEqual('pending-definition');
+      expect(integration('int-4').status()).toEqual('pending-definition');
+
+      integration('int', {
+        initialize: ()=> {},
+        track: ()=>{}
+      });
+
+      integration('int-2', {
+        initialize: ()=>{
+          expect(integration('int-2').status()).toEqual('initializing');
+          return Promise.resolve();
+        },
+        track: ()=>{}
+      });
+
+      integration('int-3', {
+        initialize: ()=> { throw 'testing errors int-3'},
+        track: ()=>{}
+      });
+
+      integration('int-4', {
+        initialize: ()=>{
+          expect(integration('int-4').status()).toEqual('initializing');
+          return Promise.reject();
+        },
+        track: ()=>{}
+      });
+
+      setTimeout(()=>{
+
+        expect(integration('int').status()).toEqual('ready');
+        expect(integration('int-2').status()).toEqual('ready');
+        expect(integration('int-3').status()).toEqual('errored');
+        expect(integration('int-4').status()).toEqual('errored');
+
+        expect(integration('int').isReady()).toEqual(true);
+        expect(integration('int-2').isReady()).toEqual(true);
+        expect(integration('int-3').isReady()).toEqual(false);
+        expect(integration('int-4').isReady()).toEqual(false);
+
+        done()
+      },0)
+    });
   });
 
 });

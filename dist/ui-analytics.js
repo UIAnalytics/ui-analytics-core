@@ -159,7 +159,7 @@
 
     // All currently read integrations need to recieve this event
     get$1().integrations.forEach(function (integration) {
-      if (integration.ready) {
+      if (integration.isReady()) {
         runTrackForIntegration(trackInstance, integration);
       }
     });
@@ -204,7 +204,10 @@
       this.initialize = this.definition.initialize;
       this.track = this.definition.track;
 
-      this.ready = false;
+      this.status = 'pending-definition';
+      this.isReady = function () {
+        return _this.status === 'ready';
+      };
 
       this.subscriptions = {};
 
@@ -228,8 +231,14 @@
 
         var topicSubs = _this.subscriptions[topic];
         if (topicSubs) {
-          _this.subscriptions[topic] = topicSubs.filter(function (sub) {
-            return sub !== subscribeReference._subscriptionCb;
+          // only remove one reference at a time.
+          var filteredOneReference = void 0;
+          _this.subscriptions[topic] = topicSubs.filter(function (subCb) {
+            if (!filteredOneReference && subCb === subscribeReference._subscriptionCb) {
+              filteredOneReference = true;
+              return false;
+            }
+            return true;
           });
         }
       };
@@ -278,7 +287,6 @@
         this.definition = definition || {};
         this.initialize = this.definition.initialize;
         this.track = this.definition.track;
-        this.ready = false;
 
         // start initialization
         // TODO: add a beforeeach that is promise based. I.e. the subscriptions will
@@ -286,10 +294,14 @@
         // be promise based
         if (this.initialize) {
           try {
+            this.status = 'initializing';
+
+            this.publish('before-init');
+
             var initializeResult = this.initialize();
 
             (initializeResult && initializeResult.then ? initializeResult : Promise.resolve()).then(function () {
-              _this2.ready = true;
+              _this2.status = 'ready';
 
               // all of the track calls captured before this point,
               // make sure they should go to this integration, and track them
@@ -299,18 +311,27 @@
 
               _this2.publish('ready', null, { invokeNewSubs: true });
             }).catch(function (e) {
-              _this2.publish('init-error', { error: e });
-              error(e);
+              _this2.fatalError(e);
             });
           } catch (e) {
-            this.publish('init-error', { error: e });
-            error(e);
+            this.fatalError(e);
           }
         }
+      }
+    }, {
+      key: 'fatalError',
+      value: function fatalError(e) {
+        this.status = 'errored';
+        this.publish('error', { error: e });
+        error('Fatal Error', e);
       }
     }]);
     return Integration;
   }();
+
+  // Note: we are adding this class as the consumer interface so that we
+  // can not open up methods that we aren't ready to support publicly,
+
 
   var IntegrationInterface = function IntegrationInterface(integration) {
     var _this3 = this;
@@ -322,10 +343,9 @@
 
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
-
-    this.options = function (options) {};
-    this.getIdentifiers = function () {};
-    this.createGroup = function () {};
+    this.options = integration.setOptions;
+    this.getIdentifiers = integration.getIdentifiers;
+    this.setGroup = integration.setGroup;
 
     this.track = function (trackName, trackProperties, trackOptions) {
       try {
@@ -333,6 +353,11 @@
       } catch (e) {
         error(e);
       }
+    };
+
+    this.isReady = integration.isReady;
+    this.status = function () {
+      return integration.status;
     };
 
     // this.trackProduct = ()=>{

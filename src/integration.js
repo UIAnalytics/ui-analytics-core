@@ -14,7 +14,8 @@ class Integration {
     this.initialize = this.definition.initialize;
     this.track = this.definition.track;
 
-    this.ready = false;
+    this.status = 'pending-definition';
+    this.isReady = ()=>this.status === 'ready';
 
     this.subscriptions = {};
 
@@ -38,8 +39,14 @@ class Integration {
 
       const topicSubs = this.subscriptions[topic];
       if(topicSubs){
-         this.subscriptions[topic] = topicSubs.filter((sub) =>{
-          return sub !== subscribeReference._subscriptionCb;
+        // only remove one reference at a time.
+        let filteredOneReference;
+        this.subscriptions[topic] = topicSubs.filter((subCb) =>{
+          if (!filteredOneReference && subCb === subscribeReference._subscriptionCb) {
+            filteredOneReference = true;
+            return false;
+          }
+          return true;
         });
       }
     };
@@ -80,7 +87,6 @@ class Integration {
     this.definition = definition || {};
     this.initialize = this.definition.initialize;
     this.track = this.definition.track;
-    this.ready = false;
 
     // start initialization
     // TODO: add a beforeeach that is promise based. I.e. the subscriptions will
@@ -88,10 +94,14 @@ class Integration {
     // be promise based
     if(this.initialize){
       try{
+        this.status = 'initializing';
+
+        this.publish('before-init')
+
         const initializeResult = this.initialize();
 
         ((initializeResult && initializeResult.then) ? initializeResult : Promise.resolve()).then(()=>{
-          this.ready = true;
+          this.status = 'ready';
 
           // all of the track calls captured before this point,
           // make sure they should go to this integration, and track them
@@ -102,17 +112,23 @@ class Integration {
           this.publish('ready', null, { invokeNewSubs: true });
 
         }).catch((e)=>{
-          this.publish('init-error', { error: e });
-          logger.error(e);
+          this.fatalError(e);
         });
       }catch(e){
-        this.publish('init-error', { error: e });
-        logger.error(e);
+        this.fatalError(e);
       }
     }
   }
+
+  fatalError(e) {
+    this.status = 'errored';
+    this.publish('error', { error: e });
+    logger.error('Fatal Error', e);
+  }
 }
 
+// Note: we are adding this class as the consumer interface so that we
+// can not open up methods that we aren't ready to support publicly,
 class IntegrationInterface {
   constructor(integration){
 
@@ -120,14 +136,9 @@ class IntegrationInterface {
 
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
-
-    this.options = (options)=>{
-
-    };
-    this.getIdentifiers = ()=>{};
-    this.createGroup = ()=>{
-
-    };
+    this.options = integration.setOptions;
+    this.getIdentifiers = integration.getIdentifiers;
+    this.setGroup = integration.setGroup;
 
     this.track = (trackName, trackProperties, trackOptions)=>{
       try {
@@ -136,6 +147,9 @@ class IntegrationInterface {
         logger.error(e);
       }
     };
+
+    this.isReady = integration.isReady
+    this.status = ()=>integration.status
 
 
     // this.trackProduct = ()=>{
