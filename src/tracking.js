@@ -3,12 +3,12 @@ import { isObject, isString } from './utils/validate'
 import * as state from './state'
 
 
-class Track {
-  constructor(eventType, eventName, eventProperties, trackOptions) {
-    this.type = eventType;
-    this.name = eventName.trim();
+class Event {
+  constructor(type, name, properties, trackOptions) {
+    this.type = type;
+    this.name = name.trim();
 
-    this.properties = isObject(eventProperties) ? JSON.parse(JSON.stringify(eventProperties)) : {};
+    this.properties = isObject(properties) ? JSON.parse(JSON.stringify(properties)) : {};
     this.trackOptions = isObject(trackOptions) ? JSON.parse(JSON.stringify(trackOptions)) : {};
 
     const intWhitelist = this.trackOptions.integrationWhitelist;
@@ -51,14 +51,14 @@ class Track {
   }
 }
 
-const track = (eventName, eventProperties, trackOptions) => {
+const track = (name, properties, trackOptions) => {
 
-  if(!isString(eventName) || !eventName.trim()){
+  if(!isString(name) || !name.trim()){
     logger.error('track was called without a string name as the first argument');
     return;
   }
 
-  let trackInstance = new Track('track', eventName, eventProperties, trackOptions);
+  let trackInstance = new Event('track', name, properties, trackOptions);
 
   // Run all transforms before calling the
   state.get().transforms.forEach(trackInstance.runTransform);

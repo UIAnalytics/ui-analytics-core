@@ -12,6 +12,6 @@ window.UIAnalytics = {
     track,
     integration,
     integrations,
-    transform,
+    transformEvents: transform,
     _state: state
 };

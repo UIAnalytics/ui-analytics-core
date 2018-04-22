@@ -4,15 +4,18 @@ import * as state from './state'
 import * as tracking from './tracking'
 
 class Integration {
-  constructor(name, options, internalOptions = {}){
+  constructor(name, definition, internalOptions = {}){
+
+    // integration is awaiting a full definition for initialization
     this.pendingDefinition = internalOptions.pendingDefinition || false;
 
     this.name = name;
-    this.options = options || {};
-    this.initialize = this.options.initialize;
-    this.track = this.options.track;
+    this.definition = definition || {};
+    this.initialize = this.definition.initialize;
+    this.track = this.definition.track;
 
     this.ready = false;
+
     this.subscriptions = {};
 
     this.subscribe = (topic, cb)=>{
@@ -68,15 +71,15 @@ class Integration {
       cb(data);
     };
 
-    if(options){
-      this.applyOptions(options);
+    if(definition){
+      this.applyDefintion(definition);
     }
   }
 
-  applyOptions(options) {
-    this.options = options || {};
-    this.initialize = this.options.initialize;
-    this.track = this.options.track;
+  applyDefintion(definition) {
+    this.definition = definition || {};
+    this.initialize = this.definition.initialize;
+    this.track = this.definition.track;
     this.ready = false;
 
     // start initialization
@@ -118,9 +121,13 @@ class IntegrationInterface {
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
 
-    this.options = ()=>{};
+    this.options = (options)=>{
+
+    };
     this.getIdentifiers = ()=>{};
-    this.createGroup = ()=>{};
+    this.createGroup = ()=>{
+
+    };
 
     this.track = (trackName, trackProperties, trackOptions)=>{
       try {
@@ -140,7 +147,7 @@ class IntegrationInterface {
 
 
 
-export default function integration(name, options){
+export default function integration(name, definition){
   if(!isString(name)){
     logger.error('integration requires a string name');
     return;
@@ -148,21 +155,21 @@ export default function integration(name, options){
 
   const currentIntegrations = state.get().integrations;
   let referencedIntegration = currentIntegrations.filter( i => i.name === name )[0];
-  const tryingToConfigure = isObject(options);
+  const tryingToConfigure = isObject(definition);
 
   if(referencedIntegration){
     // Upgrade the integration if it is still waiting to be defined
     // If it's already defined, we will do nothing and log this message
     if(tryingToConfigure && referencedIntegration.pendingDefinition){
       referencedIntegration.pendingDefinition = false;
-      referencedIntegration.applyOptions(options);
+      referencedIntegration.applyDefintion(definition);
     }else if (tryingToConfigure) {
       logger.error(`integration ${name} has already been defined and is attempting to be defined again`);
     }
   }else {
 
-    if(isObject(options)){
-      referencedIntegration = new Integration(name, options);
+    if(isObject(definition)){
+      referencedIntegration = new Integration(name, definition);
     }else {
       referencedIntegration =  new Integration(name, {}, { pendingDefinition: true });
     }

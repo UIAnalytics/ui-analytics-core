@@ -15,6 +15,7 @@
 
     <script src="/dist/ui-analytics.js"></script>
     <script>
+
       UIAnalytics.integration('local-integration', {
         initialize: function(){
           return new Promise(function(resolve){
@@ -41,11 +42,11 @@
         UIAnalytics.track('Document Clicked');
       });
 
-      UIAnalytics.transform((track)=>{
-        track.properties = Object.assign({}, track.properties, {
+      UIAnalytics.transformEvents((event)=>{
+        event.properties = Object.assign({}, event.properties, {
           hostname: window.location.hostname
         });
-        return track;
+        return event;
       });
     </script>
   </body>

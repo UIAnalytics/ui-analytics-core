@@ -90,15 +90,15 @@
     clear: clear
   });
 
-  var Track = function Track(eventType, eventName, eventProperties, trackOptions) {
+  var Event = function Event(type, name, properties, trackOptions) {
     var _this = this;
 
-    classCallCheck(this, Track);
+    classCallCheck(this, Event);
 
-    this.type = eventType;
-    this.name = eventName.trim();
+    this.type = type;
+    this.name = name.trim();
 
-    this.properties = isObject(eventProperties) ? JSON.parse(JSON.stringify(eventProperties)) : {};
+    this.properties = isObject(properties) ? JSON.parse(JSON.stringify(properties)) : {};
     this.trackOptions = isObject(trackOptions) ? JSON.parse(JSON.stringify(trackOptions)) : {};
 
     var intWhitelist = this.trackOptions.integrationWhitelist;
@@ -140,14 +140,14 @@
     };
   };
 
-  var track = function track(eventName, eventProperties, trackOptions) {
+  var track = function track(name, properties, trackOptions) {
 
-    if (!isString(eventName) || !eventName.trim()) {
+    if (!isString(name) || !name.trim()) {
       error('track was called without a string name as the first argument');
       return;
     }
 
-    var trackInstance = new Track('track', eventName, eventProperties, trackOptions);
+    var trackInstance = new Event('track', name, properties, trackOptions);
 
     // Run all transforms before calling the
     get$1().transforms.forEach(trackInstance.runTransform);
@@ -189,20 +189,23 @@
   };
 
   var Integration = function () {
-    function Integration(name, options) {
+    function Integration(name, definition) {
       var _this = this;
 
       var internalOptions = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
       classCallCheck(this, Integration);
 
+
+      // integration is awaiting a full definition for initialization
       this.pendingDefinition = internalOptions.pendingDefinition || false;
 
       this.name = name;
-      this.options = options || {};
-      this.initialize = this.options.initialize;
-      this.track = this.options.track;
+      this.definition = definition || {};
+      this.initialize = this.definition.initialize;
+      this.track = this.definition.track;
 
       this.ready = false;
+
       this.subscriptions = {};
 
       this.subscribe = function (topic, cb) {
@@ -262,19 +265,19 @@
         cb(data);
       };
 
-      if (options) {
-        this.applyOptions(options);
+      if (definition) {
+        this.applyDefintion(definition);
       }
     }
 
     createClass(Integration, [{
-      key: 'applyOptions',
-      value: function applyOptions(options) {
+      key: 'applyDefintion',
+      value: function applyDefintion(definition) {
         var _this2 = this;
 
-        this.options = options || {};
-        this.initialize = this.options.initialize;
-        this.track = this.options.track;
+        this.definition = definition || {};
+        this.initialize = this.definition.initialize;
+        this.track = this.definition.track;
         this.ready = false;
 
         // start initialization
@@ -320,7 +323,7 @@
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
 
-    this.options = function () {};
+    this.options = function (options) {};
     this.getIdentifiers = function () {};
     this.createGroup = function () {};
 
@@ -338,7 +341,7 @@
     // }
   };
 
-  function integration(name, options) {
+  function integration(name, definition) {
     if (!isString(name)) {
       error('integration requires a string name');
       return;
@@ -348,21 +351,21 @@
     var referencedIntegration = currentIntegrations.filter(function (i) {
       return i.name === name;
     })[0];
-    var tryingToConfigure = isObject(options);
+    var tryingToConfigure = isObject(definition);
 
     if (referencedIntegration) {
       // Upgrade the integration if it is still waiting to be defined
       // If it's already defined, we will do nothing and log this message
       if (tryingToConfigure && referencedIntegration.pendingDefinition) {
         referencedIntegration.pendingDefinition = false;
-        referencedIntegration.applyOptions(options);
+        referencedIntegration.applyDefintion(definition);
       } else if (tryingToConfigure) {
         error('integration ' + name + ' has already been defined and is attempting to be defined again');
       }
     } else {
 
-      if (isObject(options)) {
-        referencedIntegration = new Integration(name, options);
+      if (isObject(definition)) {
+        referencedIntegration = new Integration(name, definition);
       } else {
         referencedIntegration = new Integration(name, {}, { pendingDefinition: true });
       }
@@ -407,7 +410,7 @@
       track: track,
       integration: integration,
       integrations: integrations,
-      transform: transform,
+      transformEvents: transform,
       _state: state
   };
 
