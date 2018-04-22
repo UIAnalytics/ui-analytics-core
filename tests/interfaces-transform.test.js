@@ -213,7 +213,7 @@ describe('UIAnalytics.transform', ()=>{
       track('eventA', {propA: true});
       track('eventC', {propC: false}, {integrationWhitelist: ['c']});
       track('eventB', {propB: false}, {integrationWhitelist: ['a']});
-    },50)
+    },0)
 
   });
 });

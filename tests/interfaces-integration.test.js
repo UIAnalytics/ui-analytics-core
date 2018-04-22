@@ -100,8 +100,7 @@ describe.only('UIAnalytics.integration', ()=>{
       track('eventA', {propA: true});
       track('eventC', {propC: false}, {integrationWhitelist: ['c']});
       track('eventB', {propB: false}, {integrationWhitelist: ['a']});
-    },50);
-
+    },0);
   });
 
   test('create an integration via reference, receive track events and then initializing it when we get a delayed integration definition', (done) => {
