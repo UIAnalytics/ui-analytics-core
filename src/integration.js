@@ -17,8 +17,23 @@ class Integration {
     this.status = 'pending-definition';
     this.isReady = ()=>this.status === 'ready';
 
-    this.subscriptions = {};
+    // options represent the configuration made by the user
+    this.options = {};
+    this.setOptions = (options)=>{
+      this.options = Object.assign(this.options, options);
+      if(this.definition.setOptions){
+        this.definition.setOptions(this.options);
+      }
+    };
 
+    // Get the reference to the namespace of the integration.
+    this.getToolReference = ()=>{
+      if(this.definition.getToolReference){
+        return this.definition.getToolReference();
+      }
+    };
+
+    this.subscriptions = {};
     this.subscribe = (topic, cb)=>{
       const topicSubs = this.subscriptions[topic];
       if(topicSubs && topicSubs.invokeImmediately){
@@ -30,7 +45,6 @@ class Integration {
       }
       return { _subscriptionCb: cb };
     };
-
     this.unsubscribe = (topic, subscribeReference)=>{
       if(!topic || !subscribeReference || !subscribeReference._subscriptionCb){
         // nothing to unsubscribe from
@@ -50,7 +64,6 @@ class Integration {
         });
       }
     };
-
     this.publish = (topic, data, options={})=>{
 
       if(!topic){
@@ -72,10 +85,15 @@ class Integration {
         // this.subscriptions[topic].invokeData = data;
       }
     }
-
     this.invokeTopicCb = (topic, cb, data)=>{
       // TODO: add more useful information to call
       cb(data);
+    };
+
+    this.setGroup = (groupName, groupProperties)=>{
+      if(this.definition.setGroup){
+        this.definition.setGroup(groupName, groupProperties);
+      }
     };
 
     if(definition){
@@ -87,6 +105,7 @@ class Integration {
     this.definition = definition || {};
     this.initialize = this.definition.initialize;
     this.track = this.definition.track;
+
 
     // start initialization
     // TODO: add a beforeeach that is promise based. I.e. the subscriptions will
@@ -102,6 +121,10 @@ class Integration {
 
         ((initializeResult && initializeResult.then) ? initializeResult : Promise.resolve()).then(()=>{
           this.status = 'ready';
+
+          if(this.options && this.definition.setOptions){
+            this.definition.setOptions(this.options);
+          }
 
           // all of the track calls captured before this point,
           // make sure they should go to this integration, and track them
@@ -137,14 +160,34 @@ class IntegrationInterface {
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
     this.options = integration.setOptions;
-    this.getIdentifiers = integration.getIdentifiers;
-    this.setGroup = integration.setGroup;
+    this.getToolReference = integration.getToolReference;
 
     this.track = (trackName, trackProperties, trackOptions)=>{
       try {
         tracking.track(trackName, trackProperties, Object.assign({}, trackOptions, { integrationWhitelist: [this.name]}));
       }catch(e){
         logger.error(e);
+      }
+    };
+
+    this.group = (groupName, groupProperties)=>{
+      return {
+        track: (trackName, trackProperties, trackOptions)=>{
+          let setResult;
+
+          try {
+            if(integration.setGroup){
+              setResult = integration.setGroup(groupName, groupProperties);
+            }
+          }catch(e){
+            logger.error(e);
+          }
+
+          // setting the group definition for a given
+          ((setResult && setResult.then) ? setResult : Promise.resolve()).then(()=>{
+            this.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [ groupName ]}));
+          });
+        }
       }
     };
 

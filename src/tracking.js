@@ -17,6 +17,9 @@ class Event {
     const intBlacklist = this.trackOptions.integrationBlacklist;
     this.integrationBlacklist = (Array.isArray(intBlacklist) && intBlacklist.length > 0) ? intBlacklist : [];
 
+    const groups = this.trackOptions.groups;
+    this.groups = (Array.isArray(groups) && groups.length > 0) ? groups : [];
+
     // runTransform will handle making sure that the
     this.runTransform = (transformCb)=>{
       let transformedInstance;
@@ -43,6 +46,7 @@ class Event {
         this.trackOptions = isObject(transformedInstance.trackOptions) ? JSON.parse(JSON.stringify(transformedInstance.trackOptions)) : {};
         this.integrationWhitelist = Array.isArray(transformedInstance.integrationWhitelist) ? transformedInstance.integrationWhitelist : [];
         this.integrationBlacklist = Array.isArray(transformedInstance.integrationBlacklist) ? transformedInstance.integrationBlacklist : [];
+        this.groups = Array.isArray(transformedInstance.groups) ? transformedInstance.groups : [];
         this.type = isString(transformedInstance.type) ? transformedInstance.type : this.type;
       }catch(e) {
         logger.error(e);

@@ -107,6 +107,9 @@
     var intBlacklist = this.trackOptions.integrationBlacklist;
     this.integrationBlacklist = Array.isArray(intBlacklist) && intBlacklist.length > 0 ? intBlacklist : [];
 
+    var groups = this.trackOptions.groups;
+    this.groups = Array.isArray(groups) && groups.length > 0 ? groups : [];
+
     // runTransform will handle making sure that the
     this.runTransform = function (transformCb) {
       var transformedInstance = void 0;
@@ -133,6 +136,7 @@
         _this.trackOptions = isObject(transformedInstance.trackOptions) ? JSON.parse(JSON.stringify(transformedInstance.trackOptions)) : {};
         _this.integrationWhitelist = Array.isArray(transformedInstance.integrationWhitelist) ? transformedInstance.integrationWhitelist : [];
         _this.integrationBlacklist = Array.isArray(transformedInstance.integrationBlacklist) ? transformedInstance.integrationBlacklist : [];
+        _this.groups = Array.isArray(transformedInstance.groups) ? transformedInstance.groups : [];
         _this.type = isString(transformedInstance.type) ? transformedInstance.type : _this.type;
       } catch (e) {
         error(e);
@@ -209,8 +213,23 @@
         return _this.status === 'ready';
       };
 
-      this.subscriptions = {};
+      // options represent the configuration made by the user
+      this.options = {};
+      this.setOptions = function (options) {
+        _this.options = Object.assign(_this.options, options);
+        if (_this.definition.setOptions) {
+          _this.definition.setOptions(_this.options);
+        }
+      };
 
+      // Get the reference to the namespace of the integration.
+      this.getToolReference = function () {
+        if (_this.definition.getToolReference) {
+          return _this.definition.getToolReference();
+        }
+      };
+
+      this.subscriptions = {};
       this.subscribe = function (topic, cb) {
         var topicSubs = _this.subscriptions[topic];
         if (topicSubs && topicSubs.invokeImmediately) {
@@ -222,7 +241,6 @@
         }
         return { _subscriptionCb: cb };
       };
-
       this.unsubscribe = function (topic, subscribeReference) {
         if (!topic || !subscribeReference || !subscribeReference._subscriptionCb) {
           // nothing to unsubscribe from
@@ -242,7 +260,6 @@
           });
         }
       };
-
       this.publish = function (topic, data) {
         var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
@@ -268,10 +285,15 @@
           // this.subscriptions[topic].invokeData = data;
         }
       };
-
       this.invokeTopicCb = function (topic, cb, data) {
         // TODO: add more useful information to call
         cb(data);
+      };
+
+      this.setGroup = function (groupName, groupProperties) {
+        if (_this.definition.setGroup) {
+          _this.definition.setGroup(groupName, groupProperties);
+        }
       };
 
       if (definition) {
@@ -302,6 +324,10 @@
 
             (initializeResult && initializeResult.then ? initializeResult : Promise.resolve()).then(function () {
               _this2.status = 'ready';
+
+              if (_this2.options && _this2.definition.setOptions) {
+                _this2.definition.setOptions(_this2.options);
+              }
 
               // all of the track calls captured before this point,
               // make sure they should go to this integration, and track them
@@ -344,8 +370,7 @@
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
     this.options = integration.setOptions;
-    this.getIdentifiers = integration.getIdentifiers;
-    this.setGroup = integration.setGroup;
+    this.getToolReference = integration.getToolReference;
 
     this.track = function (trackName, trackProperties, trackOptions) {
       try {
@@ -353,6 +378,27 @@
       } catch (e) {
         error(e);
       }
+    };
+
+    this.group = function (groupName, groupProperties) {
+      return {
+        track: function track$$1(trackName, trackProperties, trackOptions) {
+          var setResult = void 0;
+
+          try {
+            if (integration.setGroup) {
+              setResult = integration.setGroup(groupName, groupProperties);
+            }
+          } catch (e) {
+            error(e);
+          }
+
+          // setting the group definition for a given
+          (setResult && setResult.then ? setResult : Promise.resolve()).then(function () {
+            _this3.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [groupName] }));
+          });
+        }
+      };
     };
 
     this.isReady = integration.isReady;
@@ -402,19 +448,6 @@
     return new IntegrationInterface(referencedIntegration);
   }
 
-  function integrations(integrationNames) {
-
-    // todo, add string asserting too
-    if (!Array.isArray(integrationNames)) {
-      error('integrations requires an arrat of string names');
-      return;
-    }
-
-    return integrationNames.map(function (name) {
-      return integration(name);
-    });
-  }
-
   var transform = function transform(transformCb) {
     if (!isFunction(transformCb)) {
       error('transform was called without a function as the first argument');
@@ -434,7 +467,6 @@
       version: version,
       track: track,
       integration: integration,
-      integrations: integrations,
       transformEvents: transform,
       _state: state
   };

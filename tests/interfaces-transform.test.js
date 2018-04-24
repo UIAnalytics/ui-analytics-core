@@ -14,6 +14,7 @@ describe('UIAnalytics.transform', ()=>{
       trackOptions: {},
       integrationWhitelist: ['all'],
       integrationBlacklist: [],
+      groups: [],
       runTransform: expect.any(Function)
     }, fields);
   };

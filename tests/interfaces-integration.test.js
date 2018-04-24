@@ -13,6 +13,7 @@ describe.only('UIAnalytics.integration', ()=>{
       trackOptions: {},
       integrationWhitelist: ['all'],
       integrationBlacklist: [],
+      groups: [],
       runTransform: expect.any(Function)
     }, fields);
   };
@@ -195,6 +196,89 @@ describe.only('UIAnalytics.integration', ()=>{
       });
     }, 10);
 
+  });
+
+  test('retrieving the integration tool reference', ()=>{
+
+    expect(integration('test-a').getToolReference()).toEqual(undefined);
+
+    let library;
+
+    integration('test-a', {
+      initialize: ()=>{
+
+        expect(integration('test-a').getToolReference()).toEqual(undefined);
+
+        library = { ref: true };
+      },
+      getToolReference: ()=>{
+        return library;
+      }
+    });
+
+    expect(integration('test-a').getToolReference()).toEqual(library);
+    expect(library).toEqual({ ref: true });
+  });
+
+  test('set integration options', ()=>{
+
+    integration('test-options').options({
+      apiKey: 'abc123'
+    });
+
+    const setOptionsMock = jest.fn();
+
+    integration('test-options', {
+      initialize: ()=>{},
+      setOptions: setOptionsMock
+    });
+
+    return Promise.resolve().then(()=>{
+      expect(setOptionsMock.mock.calls).toHaveLength(1);
+      expect(setOptionsMock.mock.calls[0][0]).toEqual({
+        apiKey: 'abc123'
+      });
+
+      integration('test-options').options({
+        apiKey: 'abc123',
+        otherThing: true
+      });
+
+      expect(setOptionsMock.mock.calls).toHaveLength(2);
+      expect(setOptionsMock.mock.calls[1][0]).toEqual({
+        apiKey: 'abc123',
+        otherThing: true
+      });
+    });
+  });
+
+  test('tracking values with a group', ()=>{
+
+    const setGroupMock = jest.fn();
+    const trackMock = jest.fn();
+    setGroupMock.mockReturnValue(Promise.resolve())
+
+    integration('int-test', {
+      initialize: ()=>{},
+      setGroup: setGroupMock,
+      track: trackMock
+    });
+
+    integration('int-test').group('groupA', {someGroupProps: true}).track('some thing');
+
+    return Promise.resolve().then(()=>{
+      expect(trackMock.mock.calls).toHaveLength(1);
+      expect(trackMock.mock.calls[0][0].trackOptions).toEqual({
+        integrationWhitelist: ['int-test'],
+        groups: ['groupA']
+      });
+      expect(trackMock.mock.calls[0][0].groups).toEqual(['groupA']);
+
+      expect(setGroupMock.mock.calls).toHaveLength(1);
+      expect(setGroupMock.mock.calls[0][0]).toEqual('groupA');
+      expect(setGroupMock.mock.calls[0][1]).toEqual({someGroupProps: true});
+
+    });
   });
 
   describe('query, subscribe, recieve, and unsubscribe from integration status changes', ()=>{
