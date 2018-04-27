@@ -6,10 +6,12 @@ import { track } from './tracking'
 import { transform } from './transform'
 import * as state from './state'
 
-window.UIAnalytics = {
+const libInterface = {
     version,
     track,
     integration,
     transformEvents: transform,
     _state: state
 };
+
+export default libInterface;

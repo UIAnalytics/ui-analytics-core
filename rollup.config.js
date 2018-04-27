@@ -10,7 +10,7 @@ export default [{
   output: {
     file: 'dist/ui-analytics.js',
     name: 'UIAnalytics',
-    format: 'iife',
+    format: 'umd',
     banner: `/* ui-analytics.js v${version} by UIAnalytics.com */`
   },
   plugins: [

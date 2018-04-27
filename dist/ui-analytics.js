@@ -1,6 +1,9 @@
 /* ui-analytics.js v0.0.1 by UIAnalytics.com */
-(function () {
-  'use strict';
+(function (global, factory) {
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+  typeof define === 'function' && define.amd ? define(factory) :
+  (global.UIAnalytics = factory());
+}(this, (function () { 'use strict';
 
   var version = "0.0.1";
 
@@ -50,7 +53,7 @@
 
   // TODO: Add check that console is actually available (for cases where it is not like private mode on ios)
   var noop = function noop() {};
-  var console = window.console || {
+  var con = console || {
     error: noop,
     log: noop,
     info: noop
@@ -58,7 +61,7 @@
 
   var error = function error() {
     if (_logLevel === 'verbose' || _logLevel === 'error') {
-      console.error.apply(console, arguments);
+      con.error.apply(con, arguments);
     }
   };
 
@@ -463,7 +466,7 @@
     });
   };
 
-  window.UIAnalytics = {
+  var libInterface = {
       version: version,
       track: track,
       integration: integration,
@@ -471,4 +474,6 @@
       _state: state
   };
 
-}());
+  return libInterface;
+
+})));

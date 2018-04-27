@@ -5,7 +5,7 @@ let _logLevel = 'verbose';
 
 // TODO: Add check that console is actually available (for cases where it is not like private mode on ios)
 const noop = ()=>{};
-const console = window.console || {
+const con = console || {
   error: noop,
   log: noop,
   info: noop
@@ -13,17 +13,17 @@ const console = window.console || {
 
 export const error = (...args)=>{
   if(_logLevel === 'verbose' || _logLevel === 'error'){
-    console.error(...args)
+    con.error(...args)
   }
 };
 export const log = (...args)=>{
   if(_logLevel === 'verbose'){
-    console.log(...args)
+    con.log(...args)
   }
 };
 export const info = (...args)=>{
   if(_logLevel === 'verbose' || _logLevel === 'info'){
-    console.info(...args)
+    con.info(...args)
   }
 };
 
