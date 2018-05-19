@@ -22,7 +22,7 @@ class Event {
     const groups = this.trackOptions.groups;
     this.groups = (Array.isArray(groups) && groups.length > 0) ? groups : [];
 
-    // runTransform will handle making sure that the changes made inside the
+    // this handles making sure that the changes made inside the
     // transformation do not break any assumptions that
     this.runTransform = (transformCb)=>{
       let transformedInstance;

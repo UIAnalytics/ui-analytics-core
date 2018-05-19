@@ -103,8 +103,8 @@ class Integration {
 
   applyDefintion(definition) {
     this.definition = definition || {};
-    this.initialize = this.definition.initialize;
-    this.track = this.definition.track;
+    this.initialize = definition.initialize;
+    this.track = definition.track;
 
     // start initialization
     if(this.initialize){
@@ -113,13 +113,15 @@ class Integration {
 
         this.publish('before-init')
 
-        const initializeResult = this.initialize();
+        // initialOptions plays a critical role of setting
+        // default options or options needed at time of initialization
+        const initializeResult = this.initialize(definition.initialOptions);
 
         ((initializeResult && initializeResult.then) ? initializeResult : Promise.resolve()).then(()=>{
           this.status = 'ready';
 
-          if(this.options && this.definition.setOptions){
-            this.definition.setOptions(this.options);
+          if(this.options && definition.setOptions){
+            definition.setOptions(this.options);
           }
 
           // all of the track calls captured before this point,
@@ -173,23 +175,25 @@ class IntegrationInterface {
     };
 
     // send events directly to a group attached to an integration
-    this.group = (groupName, groupProperties)=>{
-      return {
-        track: (trackName, trackProperties, trackOptions)=>{
-          let setResult;
+    this.group = (groupName)=>{
 
+      return {
+
+        // this function allows the user to define group setup properties
+        // if additional values are needed to be specified.
+        options: (options)=>{
           try {
-            if(integration.setGroup){
-              setResult = integration.setGroup(groupName, groupProperties);
-            }
+            integration.setGroup(groupName, options);
           }catch(e){
             error(e);
           }
+        },
 
-          // setting the group definition for a given
-          ((setResult && setResult.then) ? setResult : Promise.resolve()).then(()=>{
-            this.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [ groupName ]}));
-          });
+        // this track event conveniently adds the group to the groups Array
+        // of the track event meaning it's up to the track function to see that
+        // groups are defined and act upon them.
+        track: (trackName, trackProperties, trackOptions)=>{
+          this.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [ groupName ]}));
         }
       }
     };

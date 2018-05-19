@@ -12,6 +12,7 @@ const transform = (transformCb) => {
     transforms: state.get().transforms.concat([transformCb])
   });
 
+  // run all transforms on all current tracks
   state.get().tracks.forEach((trackInstance)=>{
     trackInstance.runTransform(transformCb);
   });

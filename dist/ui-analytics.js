@@ -114,7 +114,7 @@
     var groups = this.trackOptions.groups;
     this.groups = Array.isArray(groups) && groups.length > 0 ? groups : [];
 
-    // runTransform will handle making sure that the changes made inside the
+    // this handles making sure that the changes made inside the
     // transformation do not break any assumptions that
     this.runTransform = function (transformCb) {
       var transformedInstance = void 0;
@@ -314,8 +314,8 @@
         var _this2 = this;
 
         this.definition = definition || {};
-        this.initialize = this.definition.initialize;
-        this.track = this.definition.track;
+        this.initialize = definition.initialize;
+        this.track = definition.track;
 
         // start initialization
         if (this.initialize) {
@@ -324,13 +324,15 @@
 
             this.publish('before-init');
 
-            var initializeResult = this.initialize();
+            // initialOptions plays a critical role of setting
+            // default options or options needed at time of initialization
+            var initializeResult = this.initialize(definition.initialOptions);
 
             (initializeResult && initializeResult.then ? initializeResult : Promise.resolve()).then(function () {
               _this2.status = 'ready';
 
-              if (_this2.options && _this2.definition.setOptions) {
-                _this2.definition.setOptions(_this2.options);
+              if (_this2.options && definition.setOptions) {
+                definition.setOptions(_this2.options);
               }
 
               // all of the track calls captured before this point,
@@ -391,23 +393,25 @@
     };
 
     // send events directly to a group attached to an integration
-    this.group = function (groupName, groupProperties) {
-      return {
-        track: function track$$1(trackName, trackProperties, trackOptions) {
-          var setResult = void 0;
+    this.group = function (groupName) {
 
+      return {
+
+        // this function allows the user to define group setup properties
+        // if additional values are needed to be specified.
+        options: function options(_options) {
           try {
-            if (integration.setGroup) {
-              setResult = integration.setGroup(groupName, groupProperties);
-            }
+            integration.setGroup(groupName, _options);
           } catch (e) {
             error(e);
           }
+        },
 
-          // setting the group definition for a given
-          (setResult && setResult.then ? setResult : Promise.resolve()).then(function () {
-            _this3.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [groupName] }));
-          });
+        // this track event conveniently adds the group to the groups Array
+        // of the track event meaning it's up to the track function to see that
+        // groups are defined and act upon them.
+        track: function track$$1(trackName, trackProperties, trackOptions) {
+          _this3.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [groupName] }));
         }
       };
     };
@@ -477,6 +481,7 @@
       transforms: get$1().transforms.concat([transformCb])
     });
 
+    // run all transforms on all current tracks
     get$1().tracks.forEach(function (trackInstance) {
       trackInstance.runTransform(transformCb);
     });

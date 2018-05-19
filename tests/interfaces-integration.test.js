@@ -3,7 +3,7 @@ import integration from '../src/integration'
 import { clear as clearState, get as getState } from '../src/state'
 import { setLogLevel } from '../src/utils/logger'
 
-describe.only('UIAnalytics.integration', ()=>{
+describe('UIAnalytics.integration', ()=>{
 
   const trackObjectWithFields = (fields)=>{
     return Object.assign({
@@ -252,15 +252,49 @@ describe.only('UIAnalytics.integration', ()=>{
     });
   });
 
-  test('tracking values with a group', ()=>{
+  test('integration consuming intitial options', ()=>{
+
+    const initMock = jest.fn();
+
+    integration('test-options', {
+      initialize: initMock,
+      initialOptions: {
+        apiKey: 'abc123'
+      }
+    });
+
+    expect(initMock.mock.calls).toHaveLength(1);
+    expect(initMock.mock.calls[0][0]).toEqual({
+      apiKey: 'abc123'
+    });
+
+  });
+
+  test('passing group configuration options', ()=>{
 
     const setGroupMock = jest.fn();
     const trackMock = jest.fn();
-    setGroupMock.mockReturnValue(Promise.resolve())
 
     integration('int-test', {
       initialize: ()=>{},
-      setGroup: setGroupMock,
+      setGroup: setGroupMock
+    });
+
+    integration('int-test').group('groupA').options({someGroupProps: true});
+
+    return Promise.resolve().then(()=>{
+      expect(setGroupMock.mock.calls).toHaveLength(1);
+      expect(setGroupMock.mock.calls[0][0]).toEqual('groupA');
+      expect(setGroupMock.mock.calls[0][1]).toEqual({someGroupProps: true});
+    });
+  });
+
+  test('tracking values with a group', ()=>{
+
+    const trackMock = jest.fn();
+
+    integration('int-test', {
+      initialize: ()=>{},
       track: trackMock
     });
 
@@ -273,10 +307,6 @@ describe.only('UIAnalytics.integration', ()=>{
         groups: ['groupA']
       });
       expect(trackMock.mock.calls[0][0].groups).toEqual(['groupA']);
-
-      expect(setGroupMock.mock.calls).toHaveLength(1);
-      expect(setGroupMock.mock.calls[0][0]).toEqual('groupA');
-      expect(setGroupMock.mock.calls[0][1]).toEqual({someGroupProps: true});
 
     });
   });
