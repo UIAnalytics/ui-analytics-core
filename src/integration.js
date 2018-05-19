@@ -1,5 +1,5 @@
 import { isString, isObject } from './utils/validate'
-import * as logger from './utils/logger'
+import { error } from './utils/logger'
 import * as state from './state'
 import * as tracking from './tracking'
 
@@ -106,11 +106,7 @@ class Integration {
     this.initialize = this.definition.initialize;
     this.track = this.definition.track;
 
-
     // start initialization
-    // TODO: add a beforeeach that is promise based. I.e. the subscriptions will
-    // execute as standard functions but the wrapper around those executions will
-    // be promise based
     if(this.initialize){
       try{
         this.status = 'initializing';
@@ -132,7 +128,7 @@ class Integration {
             tracking.runTrackForIntegration(trackInstance, this);
           });
 
-          this.publish('ready', null, { invokeNewSubs: true });
+          this.publish('ready', /*data*/null, { invokeNewSubs: true });
 
         }).catch((e)=>{
           this.fatalError(e);
@@ -146,7 +142,7 @@ class Integration {
   fatalError(e) {
     this.status = 'errored';
     this.publish('error', { error: e });
-    logger.error('Fatal Error', e);
+    error('Fatal Error', e);
   }
 }
 
@@ -157,19 +153,26 @@ class IntegrationInterface {
 
     this.name = integration.name;
 
+    // respond to events happening to the integration
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
+
+    // set the options for the integration that are needed to finalize initialization
     this.options = integration.setOptions;
+
+    // get the integration api reference
     this.getToolReference = integration.getToolReference;
 
+    // send track events directly to this integration
     this.track = (trackName, trackProperties, trackOptions)=>{
       try {
         tracking.track(trackName, trackProperties, Object.assign({}, trackOptions, { integrationWhitelist: [this.name]}));
       }catch(e){
-        logger.error(e);
+        error(e);
       }
     };
 
+    // send events directly to a group attached to an integration
     this.group = (groupName, groupProperties)=>{
       return {
         track: (trackName, trackProperties, trackOptions)=>{
@@ -180,7 +183,7 @@ class IntegrationInterface {
               setResult = integration.setGroup(groupName, groupProperties);
             }
           }catch(e){
-            logger.error(e);
+            error(e);
           }
 
           // setting the group definition for a given
@@ -191,22 +194,24 @@ class IntegrationInterface {
       }
     };
 
+    // convenience access to know if the integration is in a ready state
     this.isReady = integration.isReady
+    // get the direct status of the integration
     this.status = ()=>integration.status
-
-
-    // this.trackProduct = ()=>{
-    //   // TODO: if no track product defined but there is a track send it straight there
-    //   // This might get confusing as it is hard to handle the proper event naming
-    // }
   }
 }
 
 
-
+// integration allows users to reference a defined or a to be defined integration
+// and do things with it specifically. Whether that is sending track events directly
+// to it or adding event listeners to respond to things changing with the integration.
+// We are returning an IntegrationInterface instead of the Integration itself so we can
+// limit access to what users can do to the integration specifically for maintaining control
+// so we can update the API and understand the backwards compatability of the API
 export default function integration(name, definition){
+
   if(!isString(name)){
-    logger.error('integration requires a string name');
+    error('integration requires a string name');
     return;
   }
 
@@ -215,14 +220,16 @@ export default function integration(name, definition){
   const tryingToConfigure = isObject(definition);
 
   if(referencedIntegration){
+
     // Upgrade the integration if it is still waiting to be defined
     // If it's already defined, we will do nothing and log this message
     if(tryingToConfigure && referencedIntegration.pendingDefinition){
       referencedIntegration.pendingDefinition = false;
       referencedIntegration.applyDefintion(definition);
     }else if (tryingToConfigure) {
-      logger.error(`integration ${name} has already been defined and is attempting to be defined again`);
+      error(`integration ${name} has already been defined and is attempting to be defined again`);
     }
+
   }else {
 
     if(isObject(definition)){
@@ -235,5 +242,6 @@ export default function integration(name, definition){
       integrations: currentIntegrations.concat([referencedIntegration])
     });
   }
+
   return new IntegrationInterface(referencedIntegration);
 };

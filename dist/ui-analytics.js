@@ -98,6 +98,7 @@
 
     classCallCheck(this, Event);
 
+
     this.type = type;
     this.name = name.trim();
 
@@ -113,7 +114,8 @@
     var groups = this.trackOptions.groups;
     this.groups = Array.isArray(groups) && groups.length > 0 ? groups : [];
 
-    // runTransform will handle making sure that the
+    // runTransform will handle making sure that the changes made inside the
+    // transformation do not break any assumptions that
     this.runTransform = function (transformCb) {
       var transformedInstance = void 0;
       try {
@@ -156,7 +158,7 @@
 
     var trackInstance = new Event('track', name, properties, trackOptions);
 
-    // Run all transforms before calling the
+    // Run all transforms before adding to tracks state
     get$1().transforms.forEach(trackInstance.runTransform);
 
     // Push to the global state so that new integrations can consume it later
@@ -164,7 +166,7 @@
       tracks: get$1().tracks.concat([trackInstance])
     });
 
-    // All currently read integrations need to recieve this event
+    // All currently ready integrations need to recieve this event
     get$1().integrations.forEach(function (integration) {
       if (integration.isReady()) {
         runTrackForIntegration(trackInstance, integration);
@@ -176,9 +178,11 @@
     if (!trackInstance) {
       return;
     }
+    var whitelist = trackInstance.integrationWhitelist;
+    var blacklist = trackInstance.integrationBlacklist;
 
     // make sure it's allowed by whitelist and not dissallowed by blacklist
-    if ((trackInstance.integrationWhitelist.includes('all') || trackInstance.integrationWhitelist.includes(integration.name)) && !trackInstance.integrationBlacklist.includes('all') && !trackInstance.integrationBlacklist.includes(integration.name)) {
+    if ((whitelist.includes('all') || whitelist.includes(integration.name)) && !blacklist.includes('all') && !blacklist.includes(integration.name)) {
 
       if (integration.track) {
         try {
@@ -314,9 +318,6 @@
         this.track = this.definition.track;
 
         // start initialization
-        // TODO: add a beforeeach that is promise based. I.e. the subscriptions will
-        // execute as standard functions but the wrapper around those executions will
-        // be promise based
         if (this.initialize) {
           try {
             this.status = 'initializing';
@@ -338,7 +339,7 @@
                 runTrackForIntegration(trackInstance, _this2);
               });
 
-              _this2.publish('ready', null, { invokeNewSubs: true });
+              _this2.publish('ready', /*data*/null, { invokeNewSubs: true });
             }).catch(function (e) {
               _this2.fatalError(e);
             });
@@ -370,11 +371,17 @@
 
     this.name = integration.name;
 
+    // respond to events happening to the integration
     this.on = integration.subscribe;
     this.off = integration.unsubscribe;
+
+    // set the options for the integration that are needed to finalize initialization
     this.options = integration.setOptions;
+
+    // get the integration api reference
     this.getToolReference = integration.getToolReference;
 
+    // send track events directly to this integration
     this.track = function (trackName, trackProperties, trackOptions) {
       try {
         track(trackName, trackProperties, Object.assign({}, trackOptions, { integrationWhitelist: [_this3.name] }));
@@ -383,6 +390,7 @@
       }
     };
 
+    // send events directly to a group attached to an integration
     this.group = function (groupName, groupProperties) {
       return {
         track: function track$$1(trackName, trackProperties, trackOptions) {
@@ -404,18 +412,24 @@
       };
     };
 
+    // convenience access to know if the integration is in a ready state
     this.isReady = integration.isReady;
+    // get the direct status of the integration
     this.status = function () {
       return integration.status;
     };
-
-    // this.trackProduct = ()=>{
-    //   // TODO: if no track product defined but there is a track send it straight there
-    //   // This might get confusing as it is hard to handle the proper event naming
-    // }
   };
 
+  // integration allows users to reference a defined or a to be defined integration
+  // and do things with it specifically. Whether that is sending track events directly
+  // to it or adding event listeners to respond to things changing with the integration.
+  // We are returning an IntegrationInterface instead of the Integration itself so we can
+  // limit access to what users can do to the integration specifically for maintaining control
+  // so we can update the API and understand the backwards compatability of the API
+
+
   function integration(name, definition) {
+
     if (!isString(name)) {
       error('integration requires a string name');
       return;
@@ -428,6 +442,7 @@
     var tryingToConfigure = isObject(definition);
 
     if (referencedIntegration) {
+
       // Upgrade the integration if it is still waiting to be defined
       // If it's already defined, we will do nothing and log this message
       if (tryingToConfigure && referencedIntegration.pendingDefinition) {
@@ -448,6 +463,7 @@
         integrations: currentIntegrations.concat([referencedIntegration])
       });
     }
+
     return new IntegrationInterface(referencedIntegration);
   }
 

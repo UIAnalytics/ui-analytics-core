@@ -4,7 +4,9 @@ import * as state from './state'
 
 
 class Event {
+
   constructor(type, name, properties, trackOptions) {
+
     this.type = type;
     this.name = name.trim();
 
@@ -20,7 +22,8 @@ class Event {
     const groups = this.trackOptions.groups;
     this.groups = (Array.isArray(groups) && groups.length > 0) ? groups : [];
 
-    // runTransform will handle making sure that the
+    // runTransform will handle making sure that the changes made inside the
+    // transformation do not break any assumptions that
     this.runTransform = (transformCb)=>{
       let transformedInstance;
       try {
@@ -48,12 +51,14 @@ class Event {
         this.integrationBlacklist = Array.isArray(transformedInstance.integrationBlacklist) ? transformedInstance.integrationBlacklist : [];
         this.groups = Array.isArray(transformedInstance.groups) ? transformedInstance.groups : [];
         this.type = isString(transformedInstance.type) ? transformedInstance.type : this.type;
+
       }catch(e) {
         logger.error(e);
       }
     };
   }
 }
+
 
 const track = (name, properties, trackOptions) => {
 
@@ -64,7 +69,7 @@ const track = (name, properties, trackOptions) => {
 
   let trackInstance = new Event('track', name, properties, trackOptions);
 
-  // Run all transforms before calling the
+  // Run all transforms before adding to tracks state
   state.get().transforms.forEach(trackInstance.runTransform);
 
   // Push to the global state so that new integrations can consume it later
@@ -72,7 +77,7 @@ const track = (name, properties, trackOptions) => {
     tracks: state.get().tracks.concat([trackInstance])
   });
 
-  // All currently read integrations need to recieve this event
+  // All currently ready integrations need to recieve this event
   state.get().integrations.forEach((integration)=>{
     if(integration.isReady()){
       runTrackForIntegration(trackInstance, integration)
@@ -84,10 +89,12 @@ const runTrackForIntegration = (trackInstance, integration)=>{
   if(!trackInstance){
     return;
   }
+  const whitelist = trackInstance.integrationWhitelist;
+  const blacklist = trackInstance.integrationBlacklist;
 
   // make sure it's allowed by whitelist and not dissallowed by blacklist
-  if((trackInstance.integrationWhitelist.includes('all') || trackInstance.integrationWhitelist.includes(integration.name)) &&
-    !trackInstance.integrationBlacklist.includes('all') && !trackInstance.integrationBlacklist.includes(integration.name)){
+  if((whitelist.includes('all') || whitelist.includes(integration.name)) &&
+    !blacklist.includes('all') && !blacklist.includes(integration.name)){
 
     if(integration.track){
       try{
