@@ -2,6 +2,7 @@ import { isString, isObject } from './utils/validate'
 import { error } from './utils/logger'
 import * as state from './state'
 import * as tracking from './tracking'
+import { runIdentifyUserForIntegration } from './user'
 
 class Integration {
   constructor(name, definition, internalOptions = {}){
@@ -13,6 +14,7 @@ class Integration {
     this.definition = definition || {};
     this.initialize = this.definition.initialize;
     this.track = this.definition.track;
+    this.identifyUser = this.definition.identifyUser;
 
     this.status = 'pending-definition';
     this.isReady = ()=>this.status === 'ready';
@@ -105,6 +107,7 @@ class Integration {
     this.definition = definition || {};
     this.initialize = definition.initialize;
     this.track = definition.track;
+    this.identifyUser = this.definition.identifyUser;
 
     // start initialization
     if(this.initialize){
@@ -122,6 +125,11 @@ class Integration {
 
           if(this.options && definition.setOptions){
             definition.setOptions(this.options);
+          }
+
+          // capture the user if it has already been identified
+          if(state.get().user){
+            runIdentifyUserForIntegration(state.get().user, this);
           }
 
           // all of the track calls captured before this point,

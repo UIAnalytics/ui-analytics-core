@@ -69,7 +69,8 @@
     return JSON.parse(JSON.stringify({
       integrations: [],
       tracks: [],
-      transforms: []
+      transforms: [],
+      user: null
     }));
   };
 
@@ -199,6 +200,43 @@
     }
   };
 
+  // this function allows users to invoke the user identification
+  // calls that, if the integration defines the respective method, will
+  // more accurately track the user in their respective systems
+  var identifyUser = function identifyUser(userInfo) {
+
+    if (!isObject(userInfo)) {
+      error('identifyUser was called with a non-object as the first argument:', userInfo);
+      return;
+    }
+
+    // Push to the global state so that new integrations can consume it later
+    // Note: a reminder that set will do merge with what's already there
+    set$1({
+      user: userInfo
+    });
+
+    // All currently ready integrations need to recieve this user definition
+    get$1().integrations.forEach(function (integration) {
+      runIdentifyUserForIntegration(userInfo, integration);
+    });
+  };
+
+  var runIdentifyUserForIntegration = function runIdentifyUserForIntegration(userInfo, integration) {
+    if (integration.isReady()) {
+      if (integration.identifyUser) {
+        try {
+          var identifyResult = integration.identifyUser(userInfo);
+          if (identifyResult && identifyResult.catch) {
+            identifyResult.catch(error);
+          }
+        } catch (e) {
+          error(e);
+        }
+      }
+    }
+  };
+
   var Integration = function () {
     function Integration(name, definition) {
       var _this = this;
@@ -214,6 +252,7 @@
       this.definition = definition || {};
       this.initialize = this.definition.initialize;
       this.track = this.definition.track;
+      this.identifyUser = this.definition.identifyUser;
 
       this.status = 'pending-definition';
       this.isReady = function () {
@@ -316,6 +355,7 @@
         this.definition = definition || {};
         this.initialize = definition.initialize;
         this.track = definition.track;
+        this.identifyUser = this.definition.identifyUser;
 
         // start initialization
         if (this.initialize) {
@@ -333,6 +373,11 @@
 
               if (_this2.options && definition.setOptions) {
                 definition.setOptions(_this2.options);
+              }
+
+              // capture the user if it has already been identified
+              if (get$1().user) {
+                runIdentifyUserForIntegration(get$1().user, _this2);
               }
 
               // all of the track calls captured before this point,
@@ -488,10 +533,11 @@
   };
 
   var libInterface = {
-      version: version,
-      track: track,
+      identifyUser: identifyUser,
       integration: integration,
+      track: track,
       transformEvents: transform,
+      version: version,
       _state: state
   };
 

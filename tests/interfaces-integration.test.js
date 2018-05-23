@@ -1,4 +1,5 @@
 import { track } from '../src/tracking'
+import { identifyUser } from '../src/user'
 import integration from '../src/integration'
 import { clear as clearState, get as getState } from '../src/state'
 import { setLogLevel } from '../src/utils/logger'
@@ -220,94 +221,100 @@ describe('UIAnalytics.integration', ()=>{
     expect(library).toEqual({ ref: true });
   });
 
-  test('set integration options', ()=>{
+  describe('integration options configuration', ()=>{
 
-    integration('test-options').options({
-      apiKey: 'abc123'
-    });
-
-    const setOptionsMock = jest.fn();
-
-    integration('test-options', {
-      initialize: ()=>{},
-      setOptions: setOptionsMock
-    });
-
-    return Promise.resolve().then(()=>{
-      expect(setOptionsMock.mock.calls).toHaveLength(1);
-      expect(setOptionsMock.mock.calls[0][0]).toEqual({
-        apiKey: 'abc123'
-      });
+    test('set integration options', ()=>{
 
       integration('test-options').options({
-        apiKey: 'abc123',
-        otherThing: true
-      });
-
-      expect(setOptionsMock.mock.calls).toHaveLength(2);
-      expect(setOptionsMock.mock.calls[1][0]).toEqual({
-        apiKey: 'abc123',
-        otherThing: true
-      });
-    });
-  });
-
-  test('integration consuming intitial options', ()=>{
-
-    const initMock = jest.fn();
-
-    integration('test-options', {
-      initialize: initMock,
-      initialOptions: {
         apiKey: 'abc123'
-      }
-    });
-
-    expect(initMock.mock.calls).toHaveLength(1);
-    expect(initMock.mock.calls[0][0]).toEqual({
-      apiKey: 'abc123'
-    });
-
-  });
-
-  test('passing group configuration options', ()=>{
-
-    const setGroupMock = jest.fn();
-    const trackMock = jest.fn();
-
-    integration('int-test', {
-      initialize: ()=>{},
-      setGroup: setGroupMock
-    });
-
-    integration('int-test').group('groupA').options({someGroupProps: true});
-
-    return Promise.resolve().then(()=>{
-      expect(setGroupMock.mock.calls).toHaveLength(1);
-      expect(setGroupMock.mock.calls[0][0]).toEqual('groupA');
-      expect(setGroupMock.mock.calls[0][1]).toEqual({someGroupProps: true});
-    });
-  });
-
-  test('tracking values with a group', ()=>{
-
-    const trackMock = jest.fn();
-
-    integration('int-test', {
-      initialize: ()=>{},
-      track: trackMock
-    });
-
-    integration('int-test').group('groupA', {someGroupProps: true}).track('some thing');
-
-    return Promise.resolve().then(()=>{
-      expect(trackMock.mock.calls).toHaveLength(1);
-      expect(trackMock.mock.calls[0][0].trackOptions).toEqual({
-        integrationWhitelist: ['int-test'],
-        groups: ['groupA']
       });
-      expect(trackMock.mock.calls[0][0].groups).toEqual(['groupA']);
 
+      const setOptionsMock = jest.fn();
+
+      integration('test-options', {
+        initialize: ()=>{},
+        setOptions: setOptionsMock
+      });
+
+      return Promise.resolve().then(()=>{
+        expect(setOptionsMock.mock.calls).toHaveLength(1);
+        expect(setOptionsMock.mock.calls[0][0]).toEqual({
+          apiKey: 'abc123'
+        });
+
+        integration('test-options').options({
+          apiKey: 'abc123',
+          otherThing: true
+        });
+
+        expect(setOptionsMock.mock.calls).toHaveLength(2);
+        expect(setOptionsMock.mock.calls[1][0]).toEqual({
+          apiKey: 'abc123',
+          otherThing: true
+        });
+      });
+    });
+
+    test('integration consuming intitial options', ()=>{
+
+      const initMock = jest.fn();
+
+      integration('test-options', {
+        initialize: initMock,
+        initialOptions: {
+          apiKey: 'abc123'
+        }
+      });
+
+      expect(initMock.mock.calls).toHaveLength(1);
+      expect(initMock.mock.calls[0][0]).toEqual({
+        apiKey: 'abc123'
+      });
+
+    });
+  })
+
+  describe('targeting groups', ()=>{
+
+    test('passing group configuration options', ()=>{
+
+      const setGroupMock = jest.fn();
+      const trackMock = jest.fn();
+
+      integration('int-test', {
+        initialize: ()=>{},
+        setGroup: setGroupMock
+      });
+
+      integration('int-test').group('groupA').options({someGroupProps: true});
+
+      return Promise.resolve().then(()=>{
+        expect(setGroupMock.mock.calls).toHaveLength(1);
+        expect(setGroupMock.mock.calls[0][0]).toEqual('groupA');
+        expect(setGroupMock.mock.calls[0][1]).toEqual({someGroupProps: true});
+      });
+    });
+
+    test('tracking values with a group', ()=>{
+
+      const trackMock = jest.fn();
+
+      integration('int-test', {
+        initialize: ()=>{},
+        track: trackMock
+      });
+
+      integration('int-test').group('groupA', {someGroupProps: true}).track('some thing');
+
+      return Promise.resolve().then(()=>{
+        expect(trackMock.mock.calls).toHaveLength(1);
+        expect(trackMock.mock.calls[0][0].trackOptions).toEqual({
+          integrationWhitelist: ['int-test'],
+          groups: ['groupA']
+        });
+        expect(trackMock.mock.calls[0][0].groups).toEqual(['groupA']);
+
+      });
     });
   });
 
@@ -447,4 +454,42 @@ describe('UIAnalytics.integration', ()=>{
     });
   });
 
+  describe('identifying the user', ()=>{
+    test('calling #identifyUser should call our integration\'s identifyUser', ()=>{
+
+      const userDef = {
+        email: 'initialUser',
+        otherProp: true
+      };
+
+      const userDef2 = {
+        email: 'secondUser',
+        otherProp: true
+      };
+
+      identifyUser(userDef)
+
+      const identifyUserMock = jest.fn();
+
+      integration('test-identify', {
+        initialize: ()=>{},
+        identifyUser: identifyUserMock
+      });
+
+      return Promise.resolve().then(()=>{
+
+        // verifying the identify call gets picked up if identification
+        // happened before integration definition
+        expect(identifyUserMock.mock.calls).toHaveLength(1);
+        expect(identifyUserMock.mock.calls[0][0]).toEqual(Object.assign({}, userDef));
+
+        identifyUser(userDef2)
+
+        // verifying that calling identify after integrations defined will invoke
+        // the identifyUser definition function
+        expect(identifyUserMock.mock.calls).toHaveLength(2);
+        expect(identifyUserMock.mock.calls[1][0]).toEqual(Object.assign({}, userDef2));
+      });
+    });
+  });
 });

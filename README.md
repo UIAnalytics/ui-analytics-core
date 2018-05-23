@@ -7,6 +7,11 @@
 `UIAnalytics.track( eventName, eventProperties, trackOptions )` send events to all of your integrations.
 
 ----
+#### Identifying the User
+
+`UIAnalytics.identifyUser( userObject )` will send the user definition to all integrations that have an `identifyUser` function in their definition.
+
+----
 #### Integrations
 
 `UIAnalytics.integration( integrationName, integrationDefinition )` define your integration and receive a reference to it.

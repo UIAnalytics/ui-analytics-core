@@ -2,7 +2,8 @@ const defaultState = ()=>{
   return JSON.parse(JSON.stringify({
     integrations: [],
     tracks: [],
-    transforms: []
+    transforms: [],
+    user: null
   }));
 };
 

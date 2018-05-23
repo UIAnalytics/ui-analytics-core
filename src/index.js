@@ -2,15 +2,17 @@
 
 import { version } from '../package.json'
 import integration from './integration'
+import { identifyUser } from './user'
 import { track } from './tracking'
 import { transform } from './transform'
 import * as state from './state'
 
 const libInterface = {
-    version,
-    track,
+    identifyUser,
     integration,
+    track,
     transformEvents: transform,
+    version,
     _state: state
 };
 

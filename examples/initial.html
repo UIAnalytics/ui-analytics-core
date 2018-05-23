@@ -16,6 +16,12 @@
     <script src="/dist/ui-analytics.js"></script>
     <script>
 
+      UIAnalytics.identifyUser({
+        email: 'something@example.com',
+        name: 'sean roberts',
+        otherProp: 'other thing'
+      });
+
       UIAnalytics.integration('local-integration', {
         initialize: function(){
           return new Promise(function(resolve){
@@ -28,8 +34,23 @@
           return new Promise(function(resolve){
             setTimeout(resolve, 200);
           });
+        },
+
+        identifyUser: function(userProps){
+          console.log('local-integration identifyUser:', userProps);
+          return new Promise(function(resolve){
+            setTimeout(resolve, 200);
+          });
         }
       });
+
+      setTimeout(()=>{
+        UIAnalytics.identifyUser({
+          email: 'somethinglater@example.com',
+          name: 'sean roberts',
+          otherProp: 'other thing'
+        });
+      }, 200)
     </script>
 
     <script>

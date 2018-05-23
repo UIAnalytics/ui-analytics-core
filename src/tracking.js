@@ -1,4 +1,4 @@
-import * as logger from './utils/logger'
+import { error } from './utils/logger'
 import { isObject, isString } from './utils/validate'
 import * as state from './state'
 
@@ -35,12 +35,12 @@ class Event {
           // This seems to make too many assumptions at this point for how transforms
           // might be used and we don't want to allow this functionality for the sake
           // of not being able to change this behavior once it's introduced
-          logger.error(`"${trackInstance.name}" was deleted by a transform. This is currently not allowed and we will ignore this transform. Update the 'integrationBlacklist' array to "all" if you want it to fully block it.`);
+          error(`"${trackInstance.name}" was deleted by a transform. This is currently not allowed and we will ignore this transform. Update the 'integrationBlacklist' array to "all" if you want it to fully block it.`);
           return;
         }
 
         if(!isString(transformedInstance.name) || !transformedInstance.name.trim()){
-          logger.error(`"${this.name}" had it's string name removed by a transform. This is currently not allowed and we will ignore this name change and are reverting it.`);
+          error(`"${this.name}" had it's string name removed by a transform. This is currently not allowed and we will ignore this name change and are reverting it.`);
         }else {
           this.name = transformedInstance.name.trim();
         }
@@ -53,7 +53,7 @@ class Event {
         this.type = isString(transformedInstance.type) ? transformedInstance.type : this.type;
 
       }catch(e) {
-        logger.error(e);
+        error(e);
       }
     };
   }
@@ -63,7 +63,7 @@ class Event {
 const track = (name, properties, trackOptions) => {
 
   if(!isString(name) || !name.trim()){
-    logger.error('track was called without a string name as the first argument');
+    error('track was called without a string name as the first argument');
     return;
   }
 
@@ -100,13 +100,13 @@ const runTrackForIntegration = (trackInstance, integration)=>{
       try{
         const trackResult = integration.track(trackInstance);
         if(trackResult && trackResult.catch){
-          trackResult.catch(logger.error)
+          trackResult.catch(error)
         }
       }catch(e){
-        logger.error(e)
+        error(e)
       }
     }else {
-      logger.error(`integration: "${integration.name}" is initialized but does not have a track method`)
+      error(`integration: "${integration.name}" is initialized but does not have a track method`)
     }
   }
 }
