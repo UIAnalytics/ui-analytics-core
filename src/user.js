@@ -39,4 +39,20 @@ const runIdentifyUserForIntegration = (userInfo, integration)=>{
   }
 }
 
-export { identifyUser, runIdentifyUserForIntegration };
+// invoking this function will clear the internal state of the user as well as
+// invoke all of the currently running integration's user session reset functionality.
+// This _should_ dissassociate the current browser/user session from all integrations.
+const clearAllUserSessions = ()=>{
+
+  // clear our current internal state of user
+  state.set({
+    user: null
+  });
+
+  // tell all integrations to clear their state of user
+  state.get().integrations.forEach((integration)=>{
+    integration.clearUserSession();
+  });
+}
+
+export { identifyUser, runIdentifyUserForIntegration, clearAllUserSessions };

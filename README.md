@@ -7,9 +7,11 @@
 `UIAnalytics.track( eventName, eventProperties, trackOptions )` send events to all of your integrations.
 
 ----
-#### Identifying the User
+#### User Identity
 
 `UIAnalytics.identifyUser( userObject )` will send the user definition to all integrations that have an `identifyUser` function in their definition.
+
+`UIAnalytics.clearAllUserSessions()` will remove any identification passed to `identifyUser` internally to the library as well as invoke all of the current integration's `clearUserSession` definition functions. This should clear all current user/browser session state with your integrations.
 
 ----
 #### Integrations
@@ -44,6 +46,9 @@ _assuming `const integrationRef = UIAnalytics.integration( 'FakeIntegration' )`_
 `integrationRef.group('groupName').options( groupOptions )` Some integrations require more information in order to properly create your group. This function allows you to pass data to enrich your groups definition which will ultimately be passed to the integration's `setGroup` function if it has been defined.
 
 `integrationRef.group('groupName').track()` This allows you to create track calls for specific groups definitions for your integration. Internally, this will invoke track in a way that whitelists the event only for this integration and adds this group to the event's group list.
+
+`integrationRef.clearUserSession()` This allows you to clear the user's session information for this integration specifically. If you want to clear user session information for all integrations use `UIAnalytics.clearAllUserSessions()`
+
 
 ----
 #### Transforming Events

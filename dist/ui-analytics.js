@@ -237,6 +237,22 @@
     }
   };
 
+  // invoking this function will clear the internal state of the user as well as
+  // invoke all of the currently running integration's user session reset functionality.
+  // This _should_ dissassociate the current browser/user session from all integrations.
+  var clearAllUserSessions = function clearAllUserSessions() {
+
+    // clear our current internal state of user
+    set$1({
+      user: null
+    });
+
+    // tell all integrations to clear their state of user
+    get$1().integrations.forEach(function (integration) {
+      integration.clearUserSession();
+    });
+  };
+
   var Integration = function () {
     function Integration(name, definition) {
       var _this = this;
@@ -268,10 +284,18 @@
         }
       };
 
-      // Get the reference to the namespace of the integration.
+      // Get the reference to the integration's actual api.
       this.getToolReference = function () {
         if (_this.definition.getToolReference) {
           return _this.definition.getToolReference();
+        }
+      };
+
+      // Invokes the integration's function that is in charge of removing the
+      // current user's session state.
+      this.clearUserSession = function () {
+        if (_this.definition.clearUserSession) {
+          return _this.definition.clearUserSession();
         }
       };
 
@@ -355,7 +379,7 @@
         this.definition = definition || {};
         this.initialize = definition.initialize;
         this.track = definition.track;
-        this.identifyUser = this.definition.identifyUser;
+        this.identifyUser = definition.identifyUser;
 
         // start initialization
         if (this.initialize) {
@@ -371,6 +395,7 @@
             (initializeResult && initializeResult.then ? initializeResult : Promise.resolve()).then(function () {
               _this2.status = 'ready';
 
+              // apply the initially defined options
               if (_this2.options && definition.setOptions) {
                 definition.setOptions(_this2.options);
               }
@@ -427,6 +452,9 @@
 
     // get the integration api reference
     this.getToolReference = integration.getToolReference;
+
+    // clear the user's session
+    this.clearUserSession = integration.clearUserSession;
 
     // send track events directly to this integration
     this.track = function (trackName, trackProperties, trackOptions) {
@@ -533,6 +561,7 @@
   };
 
   var libInterface = {
+      clearAllUserSessions: clearAllUserSessions,
       identifyUser: identifyUser,
       integration: integration,
       track: track,

@@ -28,10 +28,18 @@ class Integration {
       }
     };
 
-    // Get the reference to the namespace of the integration.
+    // Get the reference to the integration's actual api.
     this.getToolReference = ()=>{
       if(this.definition.getToolReference){
         return this.definition.getToolReference();
+      }
+    };
+
+    // Invokes the integration's function that is in charge of removing the
+    // current user's session state.
+    this.clearUserSession = ()=>{
+      if(this.definition.clearUserSession){
+        return this.definition.clearUserSession();
       }
     };
 
@@ -107,7 +115,7 @@ class Integration {
     this.definition = definition || {};
     this.initialize = definition.initialize;
     this.track = definition.track;
-    this.identifyUser = this.definition.identifyUser;
+    this.identifyUser = definition.identifyUser;
 
     // start initialization
     if(this.initialize){
@@ -123,6 +131,7 @@ class Integration {
         ((initializeResult && initializeResult.then) ? initializeResult : Promise.resolve()).then(()=>{
           this.status = 'ready';
 
+          // apply the initially defined options
           if(this.options && definition.setOptions){
             definition.setOptions(this.options);
           }
@@ -172,6 +181,9 @@ class IntegrationInterface {
 
     // get the integration api reference
     this.getToolReference = integration.getToolReference;
+
+    // clear the user's session
+    this.clearUserSession = integration.clearUserSession;
 
     // send track events directly to this integration
     this.track = (trackName, trackProperties, trackOptions)=>{

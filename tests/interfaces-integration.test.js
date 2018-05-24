@@ -1,5 +1,5 @@
 import { track } from '../src/tracking'
-import { identifyUser } from '../src/user'
+import { identifyUser, clearAllUserSessions } from '../src/user'
 import integration from '../src/integration'
 import { clear as clearState, get as getState } from '../src/state'
 import { setLogLevel } from '../src/utils/logger'
@@ -454,7 +454,7 @@ describe('UIAnalytics.integration', ()=>{
     });
   });
 
-  describe('identifying the user', ()=>{
+  describe('user identification management', ()=>{
     test('calling #identifyUser should call our integration\'s identifyUser', ()=>{
 
       const userDef = {
@@ -489,6 +489,53 @@ describe('UIAnalytics.integration', ()=>{
         // the identifyUser definition function
         expect(identifyUserMock.mock.calls).toHaveLength(2);
         expect(identifyUserMock.mock.calls[1][0]).toEqual(Object.assign({}, userDef2));
+      });
+    });
+
+    test('calling #clearAllUserSessions should call our integration\'s clearUserSession and clear our user state', ()=>{
+
+      const userDef = {
+        email: 'initialUser',
+        otherProp: true
+      };
+
+      const userDef2 = {
+        email: 'secondUser',
+        otherProp: true
+      };
+
+      identifyUser(userDef)
+
+      const identifyUserMock = jest.fn();
+      const identifyUserMock2 = jest.fn();
+      const clearUserSessionMock = jest.fn();
+
+      integration('test-identify', {
+        initialize: ()=>{},
+        identifyUser: identifyUserMock,
+        clearUserSession: clearUserSessionMock
+      });
+
+      return Promise.resolve().then(()=>{
+
+        // verify setting user identity is working as expected
+        expect(identifyUserMock.mock.calls).toHaveLength(1);
+        expect(identifyUserMock.mock.calls[0][0]).toEqual(Object.assign({}, userDef));
+        expect(getState().user).toEqual(userDef);
+
+        clearAllUserSessions()
+
+        // now make sure all clear functions were called and internal user state was reset
+        expect(clearUserSessionMock.mock.calls).toHaveLength(1);
+        expect(getState().user).toEqual(null);
+
+        identifyUser(userDef2)
+
+        // verifying setting user still works and we are tracking that internally as well
+        expect(identifyUserMock.mock.calls).toHaveLength(2);
+        expect(identifyUserMock.mock.calls[1][0]).toEqual(Object.assign({}, userDef2));
+        expect(getState().user).toEqual(userDef2);
+
       });
     });
   });
