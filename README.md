@@ -4,7 +4,9 @@
 
 #### Tracking
 
-`UIAnalytics.track( eventName, eventProperties, trackOptions )` send events to all of your integrations.
+`UIAnalytics.track( eventName, eventProperties, trackOptions )` send an event to all of your integrations. You can use the `trackOptions` option tweak where your event goes like `groups`, `integrationWhitelist`, or `integrationBlacklist`. Calls to this method will create a Track instance with type equally `event`.
+
+`UIAnalytics.trackPage( pageName, pageProperties, trackOptions )` send a page event to all of your integrations. Generally speaking, integrations take page event tracking as a special consideration. This track call takes the same form as the general purpose `UIAnalytics.track()` function but the Track instance type will be `page` allowing integrations to know the difference and act accordingly. But since it has the same signature as `track()` you may use all of the same functionality for detailing where it should go.
 
 ----
 #### User Identity
@@ -26,7 +28,9 @@ _assuming `const integrationRef = UIAnalytics.integration( 'FakeIntegration' )`_
 
 `integrationRef.options( integrationOptions )` depending on your integration, it will might need some configuration options passed to it to properly complete it's initialization or identification of the application.
 
-`integrationRef.track( eventName, eventProperties )` send events directly to this integration only.
+`integrationRef.track( eventName, eventProperties, trackOptions )` send general events directly to this integration only.
+
+`integrationRef.trackPage( pageName, pageProperties, trackOptions )` send page events directly to this integration only.
 
 `integrationRef.on( eventName, callback )` assign an event listener for the integration lifecycle. This returns an event listener reference that is used to remove the listener later via the `.off` function.
  - available events:
@@ -45,7 +49,9 @@ _assuming `const integrationRef = UIAnalytics.integration( 'FakeIntegration' )`_
 
 `integrationRef.group('groupName').options( groupOptions )` Some integrations require more information in order to properly create your group. This function allows you to pass data to enrich your groups definition which will ultimately be passed to the integration's `setGroup` function if it has been defined.
 
-`integrationRef.group('groupName').track()` This allows you to create track calls for specific groups definitions for your integration. Internally, this will invoke track in a way that whitelists the event only for this integration and adds this group to the event's group list.
+`integrationRef.group('groupName').track( eventName, eventProperties, trackOptions )` This allows you to create track calls for specific groups definitions for your integration. Internally, this will invoke track in a way that whitelists the event only for this integration and adds this group to the event's group list.
+
+`integrationRef.group('groupName').trackPage( pageName, pageProperties, trackOptions )` This allows you to create track page calls for specific groups definitions for your integration. Internally, this will invoke trackPage in a way that whitelists the event only for this integration and adds this group to the event's group list.
 
 `integrationRef.clearUserSession()` This allows you to clear the user's session information for this integration specifically. If you want to clear user session information for all integrations use `UIAnalytics.clearAllUserSessions()`
 
@@ -62,13 +68,15 @@ The `transformFn` will receive and event instance (see its spec below) and shoul
 
 ----
 
-### The Event Instance
+### The Track Instance
 
 The default event model structure:
 
 ```
 {
-  type: "track",
+  // for UIAnalytics.track() this will be 'event' but for
+  // UIAnalytics.trackPage() this value will be 'page'
+  type: "event",
 
   // the string name passed to `track( name )`
   name: "",

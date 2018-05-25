@@ -94,10 +94,10 @@
     clear: clear
   });
 
-  var Event = function Event(type, name, properties, trackOptions) {
+  var Track = function Track(type, name, properties, trackOptions) {
     var _this = this;
 
-    classCallCheck(this, Event);
+    classCallCheck(this, Track);
 
 
     this.type = type;
@@ -138,27 +138,19 @@
           _this.name = transformedInstance.name.trim();
         }
 
+        // For now, we do not want to encourage change this.type in a transform
         _this.properties = isObject(transformedInstance.properties) ? JSON.parse(JSON.stringify(transformedInstance.properties)) : {};
         _this.trackOptions = isObject(transformedInstance.trackOptions) ? JSON.parse(JSON.stringify(transformedInstance.trackOptions)) : {};
         _this.integrationWhitelist = Array.isArray(transformedInstance.integrationWhitelist) ? transformedInstance.integrationWhitelist : [];
         _this.integrationBlacklist = Array.isArray(transformedInstance.integrationBlacklist) ? transformedInstance.integrationBlacklist : [];
         _this.groups = Array.isArray(transformedInstance.groups) ? transformedInstance.groups : [];
-        _this.type = isString(transformedInstance.type) ? transformedInstance.type : _this.type;
       } catch (e) {
         error(e);
       }
     };
   };
 
-  var track = function track(name, properties, trackOptions) {
-
-    if (!isString(name) || !name.trim()) {
-      error('track was called without a string name as the first argument');
-      return;
-    }
-
-    var trackInstance = new Event('track', name, properties, trackOptions);
-
+  var processNewTrackInstance = function processNewTrackInstance(trackInstance) {
     // Run all transforms before adding to tracks state
     get$1().transforms.forEach(trackInstance.runTransform);
 
@@ -173,6 +165,26 @@
         runTrackForIntegration(trackInstance, integration);
       }
     });
+  };
+
+  var track = function track(name, properties, trackOptions) {
+
+    if (!isString(name) || !name.trim()) {
+      error('track was called without a string name as the first argument');
+      return;
+    }
+
+    processNewTrackInstance(new Track('event', name, properties, trackOptions));
+  };
+
+  var trackPage = function trackPage(name, properties, trackOptions) {
+
+    if (!isString(name) || !name.trim()) {
+      error('trackPage was called without a string name as the first argument');
+      return;
+    }
+
+    processNewTrackInstance(new Track('page', name, properties, trackOptions));
   };
 
   var runTrackForIntegration = function runTrackForIntegration(trackInstance, integration) {
@@ -465,6 +477,15 @@
       }
     };
 
+    // send page events directly to this integration
+    this.trackPage = function (pageName, pageProperties, trackOptions) {
+      try {
+        trackPage(pageName, pageProperties, Object.assign({}, trackOptions, { integrationWhitelist: [_this3.name] }));
+      } catch (e) {
+        error(e);
+      }
+    };
+
     // send events directly to a group attached to an integration
     this.group = function (groupName) {
 
@@ -485,6 +506,9 @@
         // groups are defined and act upon them.
         track: function track$$1(trackName, trackProperties, trackOptions) {
           _this3.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [groupName] }));
+        },
+        trackPage: function trackPage$$1(pageName, pageProperties, trackOptions) {
+          _this3.trackPage(pageName, pageProperties, Object.assign({}, trackOptions, { groups: [groupName] }));
         }
       };
     };
@@ -565,6 +589,7 @@
       identifyUser: identifyUser,
       integration: integration,
       track: track,
+      trackPage: trackPage,
       transformEvents: transform,
       version: version,
       _state: state

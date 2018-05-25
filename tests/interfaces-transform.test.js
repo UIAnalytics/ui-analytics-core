@@ -8,7 +8,7 @@ describe('UIAnalytics.transform', ()=>{
 
   const trackObjectWithFields = (fields)=>{
     return Object.assign({
-      type: 'track',
+      type: 'event',
       name: '',
       properties: {},
       trackOptions: {},

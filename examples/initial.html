@@ -16,6 +16,12 @@
     <script src="/dist/ui-analytics.js"></script>
     <script>
 
+      window.onload = ()=>{
+        UIAnalytics.trackPage(document.title || 'Untitled', {
+          url: window.location.href
+        })
+      }
+
       UIAnalytics.identifyUser({
         email: 'something@example.com',
         name: 'sean roberts',

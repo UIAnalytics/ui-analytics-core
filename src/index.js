@@ -3,7 +3,7 @@
 import { version } from '../package.json'
 import integration from './integration'
 import { identifyUser, clearAllUserSessions } from './user'
-import { track } from './tracking'
+import { track, trackPage } from './tracking'
 import { transform } from './transform'
 import * as state from './state'
 
@@ -12,6 +12,7 @@ const libInterface = {
     identifyUser,
     integration,
     track,
+    trackPage,
     transformEvents: transform,
     version,
     _state: state

@@ -194,6 +194,15 @@ class IntegrationInterface {
       }
     };
 
+    // send page events directly to this integration
+    this.trackPage = (pageName, pageProperties, trackOptions)=>{
+      try {
+        tracking.trackPage(pageName, pageProperties, Object.assign({}, trackOptions, { integrationWhitelist: [this.name]}));
+      }catch(e){
+        error(e);
+      }
+    };
+
     // send events directly to a group attached to an integration
     this.group = (groupName)=>{
 
@@ -214,6 +223,9 @@ class IntegrationInterface {
         // groups are defined and act upon them.
         track: (trackName, trackProperties, trackOptions)=>{
           this.track(trackName, trackProperties, Object.assign({}, trackOptions, { groups: [ groupName ]}));
+        },
+        trackPage: (pageName, pageProperties, trackOptions)=>{
+          this.trackPage(pageName, pageProperties, Object.assign({}, trackOptions, { groups: [ groupName ]}));
         }
       }
     };

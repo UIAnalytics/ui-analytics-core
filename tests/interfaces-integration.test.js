@@ -1,4 +1,4 @@
-import { track } from '../src/tracking'
+import { track, trackPage } from '../src/tracking'
 import { identifyUser, clearAllUserSessions } from '../src/user'
 import integration from '../src/integration'
 import { clear as clearState, get as getState } from '../src/state'
@@ -8,7 +8,7 @@ describe('UIAnalytics.integration', ()=>{
 
   const trackObjectWithFields = (fields)=>{
     return Object.assign({
-      type: 'track',
+      type: 'event',
       name: '',
       properties: {},
       trackOptions: {},
@@ -163,7 +163,6 @@ describe('UIAnalytics.integration', ()=>{
 
     let trackCount = 0;
 
-    // thes tracks are effectively called after the integration is initialized
     track('eventD', {propD: false}, {integrationBlacklist: ['a']});
     track('eventA', {propA: true});
     track('eventC', {propC: false}, {integrationWhitelist: ['c']});
@@ -197,6 +196,60 @@ describe('UIAnalytics.integration', ()=>{
       });
     }, 10);
 
+  });
+
+  test('create an integration and consume track calls for pages', (done) => {
+
+    let trackCount = 0;
+
+    // thes tracks are effectively called after the integration is initialized
+    trackPage('pageD', {propD: false}, {integrationBlacklist: ['a']});
+    trackPage('pageA', {propA: true});
+    trackPage('pageC', {propC: false}, {integrationWhitelist: ['c']});
+    trackPage('pageB', {propB: false}, {integrationWhitelist: ['a']});
+
+    setTimeout(()=>{
+
+      integration('a', {
+        initialize: ()=> {},
+        track: (track)=>{
+          trackCount++;
+
+          // this makes sure we can send more than one and the order is maintained
+          if(trackCount === 1){
+            expect(track).toEqual(trackObjectWithFields({type: 'page', name:'pageA', properties: {propA: true} }));
+          }else if (trackCount === 2) {
+
+            expect(track).toEqual(trackObjectWithFields({
+              type: 'page',
+              name:'pageB',
+              properties: {propB: false},
+              integrationWhitelist: ['a'],
+              trackOptions: {
+                integrationWhitelist: ['a']
+              }
+            }));
+          }else {
+            expect(track).toEqual(trackObjectWithFields({
+              type: 'page',
+              name:'pageE',
+              properties: {url : 'http://example.com'},
+              integrationWhitelist: ['a'],
+              trackOptions: {
+                integrationWhitelist: ['a']
+              }
+            }));
+          }
+
+          if(trackCount === 3){
+            done();
+          }
+        }
+      });
+
+      integration('a').trackPage('pageE', {url : 'http://example.com'})
+
+    }, 10);
   });
 
   test('retrieving the integration tool reference', ()=>{
@@ -305,14 +358,30 @@ describe('UIAnalytics.integration', ()=>{
       });
 
       integration('int-test').group('groupA', {someGroupProps: true}).track('some thing');
+      integration('int-test').group('groupA', {someGroupProps: true}).trackPage('some page');
 
       return Promise.resolve().then(()=>{
-        expect(trackMock.mock.calls).toHaveLength(1);
-        expect(trackMock.mock.calls[0][0].trackOptions).toEqual({
+        expect(trackMock.mock.calls).toHaveLength(2);
+        expect(trackMock.mock.calls[0][0]).toEqual(trackObjectWithFields({
+          name: 'some thing',
           integrationWhitelist: ['int-test'],
-          groups: ['groupA']
-        });
-        expect(trackMock.mock.calls[0][0].groups).toEqual(['groupA']);
+          groups: ['groupA'],
+          trackOptions: {
+            integrationWhitelist: ['int-test'],
+            groups: ['groupA']
+          }
+        }));
+
+        expect(trackMock.mock.calls[1][0]).toEqual(trackObjectWithFields({
+          type: 'page',
+          name: 'some page',
+          integrationWhitelist: ['int-test'],
+          groups: ['groupA'],
+          trackOptions: {
+            integrationWhitelist: ['int-test'],
+            groups: ['groupA']
+          }
+        }));
 
       });
     });

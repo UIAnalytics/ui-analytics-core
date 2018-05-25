@@ -3,7 +3,7 @@ import { isObject, isString } from './utils/validate'
 import * as state from './state'
 
 
-class Event {
+class Track {
 
   constructor(type, name, properties, trackOptions) {
 
@@ -14,7 +14,7 @@ class Event {
     this.trackOptions = isObject(trackOptions) ? JSON.parse(JSON.stringify(trackOptions)) : {};
 
     const intWhitelist = this.trackOptions.integrationWhitelist;
-    this.integrationWhitelist = (Array.isArray(intWhitelist) && intWhitelist.length > 0)? intWhitelist : ['all'];
+    this.integrationWhitelist = (Array.isArray(intWhitelist) && intWhitelist.length > 0) ? intWhitelist : ['all'];
 
     const intBlacklist = this.trackOptions.integrationBlacklist;
     this.integrationBlacklist = (Array.isArray(intBlacklist) && intBlacklist.length > 0) ? intBlacklist : [];
@@ -45,12 +45,13 @@ class Event {
           this.name = transformedInstance.name.trim();
         }
 
+        // For now, we do not want to encourage change this.type in a transform
         this.properties = isObject(transformedInstance.properties) ? JSON.parse(JSON.stringify(transformedInstance.properties)) : {};
         this.trackOptions = isObject(transformedInstance.trackOptions) ? JSON.parse(JSON.stringify(transformedInstance.trackOptions)) : {};
         this.integrationWhitelist = Array.isArray(transformedInstance.integrationWhitelist) ? transformedInstance.integrationWhitelist : [];
         this.integrationBlacklist = Array.isArray(transformedInstance.integrationBlacklist) ? transformedInstance.integrationBlacklist : [];
         this.groups = Array.isArray(transformedInstance.groups) ? transformedInstance.groups : [];
-        this.type = isString(transformedInstance.type) ? transformedInstance.type : this.type;
+
 
       }catch(e) {
         error(e);
@@ -59,16 +60,7 @@ class Event {
   }
 }
 
-
-const track = (name, properties, trackOptions) => {
-
-  if(!isString(name) || !name.trim()){
-    error('track was called without a string name as the first argument');
-    return;
-  }
-
-  let trackInstance = new Event('track', name, properties, trackOptions);
-
+const processNewTrackInstance = (trackInstance) => {
   // Run all transforms before adding to tracks state
   state.get().transforms.forEach(trackInstance.runTransform);
 
@@ -83,7 +75,27 @@ const track = (name, properties, trackOptions) => {
       runTrackForIntegration(trackInstance, integration)
     }
   });
-}
+};
+
+const track = (name, properties, trackOptions) => {
+
+  if(!isString(name) || !name.trim()){
+    error('track was called without a string name as the first argument');
+    return;
+  }
+
+  processNewTrackInstance(new Track('event', name, properties, trackOptions));
+};
+
+const trackPage = (name, properties, trackOptions) => {
+
+  if(!isString(name) || !name.trim()){
+    error('trackPage was called without a string name as the first argument');
+    return;
+  }
+
+  processNewTrackInstance(new Track('page', name, properties, trackOptions));
+};
 
 const runTrackForIntegration = (trackInstance, integration)=>{
   if(!trackInstance){
@@ -111,4 +123,4 @@ const runTrackForIntegration = (trackInstance, integration)=>{
   }
 }
 
-export { track, runTrackForIntegration };
+export { track, trackPage, runTrackForIntegration };
