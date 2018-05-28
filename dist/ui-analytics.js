@@ -107,7 +107,7 @@
     this.trackOptions = isObject(trackOptions) ? JSON.parse(JSON.stringify(trackOptions)) : {};
 
     var intWhitelist = this.trackOptions.integrationWhitelist;
-    this.integrationWhitelist = Array.isArray(intWhitelist) && intWhitelist.length > 0 ? intWhitelist : ['all'];
+    this.integrationWhitelist = Array.isArray(intWhitelist) && intWhitelist.length > 0 ? intWhitelist : [];
 
     var intBlacklist = this.trackOptions.integrationBlacklist;
     this.integrationBlacklist = Array.isArray(intBlacklist) && intBlacklist.length > 0 ? intBlacklist : [];
@@ -195,7 +195,7 @@
     var blacklist = trackInstance.integrationBlacklist;
 
     // make sure it's allowed by whitelist and not dissallowed by blacklist
-    if ((whitelist.includes('all') || whitelist.includes(integration.name)) && !blacklist.includes('all') && !blacklist.includes(integration.name)) {
+    if ((whitelist.length === 0 || whitelist.includes(integration.name)) && (blacklist.length === 0 || !blacklist.includes(integration.name))) {
 
       if (integration.track) {
         try {

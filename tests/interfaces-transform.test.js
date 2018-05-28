@@ -12,7 +12,7 @@ describe('UIAnalytics.transform', ()=>{
       name: '',
       properties: {},
       trackOptions: {},
-      integrationWhitelist: ['all'],
+      integrationWhitelist: [],
       integrationBlacklist: [],
       groups: [],
       runTransform: expect.any(Function)

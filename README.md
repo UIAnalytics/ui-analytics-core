@@ -88,9 +88,7 @@ The default event model structure:
   trackOptions: {},
 
   // current integration whitelist
-  integrationWhitelist: [
-    "all"
-  ],
+  integrationWhitelist: [],
 
   // current integration blacklist
   integrationBlacklist: [],
