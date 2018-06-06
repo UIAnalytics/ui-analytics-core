@@ -22,6 +22,11 @@
         })
       }
 
+      UIAnalytics.integration('local-integration').on('ready', (...args)=>{
+        console.log('ready');
+      });
+
+
       UIAnalytics.identifyUser({
         email: 'something@example.com',
         name: 'sean roberts',
@@ -61,19 +66,26 @@
 
     <script>
 
-      document.addEventListener('DOMContentLoaded', function(){
-        UIAnalytics.track('DOMContentLoaded', { time: Date.now() });
-      })
 
-      document.addEventListener('click', function(event){
-        UIAnalytics.track('Document Clicked');
-      });
 
       UIAnalytics.transformEvents((event)=>{
         event.properties = Object.assign({}, event.properties, {
           hostname: window.location.hostname
         });
         return event;
+      });
+
+
+      UIAnalytics.plugin('DOMEventsPlugin', ()=>{
+
+        document.addEventListener('DOMContentLoaded', function(){
+          UIAnalytics.track('DOMContentLoaded', { time: Date.now() });
+        })
+
+        document.addEventListener('click', function(event){
+          UIAnalytics.track('Document Clicked');
+        });
+
       });
     </script>
   </body>

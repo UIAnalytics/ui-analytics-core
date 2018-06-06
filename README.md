@@ -103,3 +103,71 @@ Things to know about the event model:
 - `integrationWhitelist`, `integrationBlacklist`, and `groups` initially come from the `trackOptions` parameter of `track( name, props, trackOptions )`.
 - The `integration( int ).track( 'track1' )` and `integration( int ).group( groupA ).track('track2')` functions are convenience functions for setting the `integrationWhitelist` or `groups` trackOptions properties.
 - If an integration is in the event's blacklist then the integration will never consume that event - even if it's in the whitelist.
+
+
+----
+#### Plugins
+
+Plugins are bits of logic that bundle a group of analytics or other tooling logic into a chunk of very portable code.
+
+There are several ways to define a plugin:
+
+```
+// give it a string name and then the function to run when triggered
+UIAnalytics.plugin( pluginNameString, pluginRunFn );
+
+
+// provide more override options and then the function to run when triggered
+UIAnalytics.plugin( pluginOptionsObject, pluginRunFn );
+
+
+// go with all of the defaults and just pass the function to run when triggered
+UIAnalytics.plugin( pluginRunFn );
+```
+
+Plugins will all have the default configuration listed below unless you create a plugin and pass the `pluginOptionsObject` to override them. Note, this override is a shallow merge.
+
+```
+// default plugin configuration
+{
+  // string name of the plugin - this name is how you reference after definition
+  name: '',
+
+  // array of string trigger values
+  triggers: ['immediately', 'manual']
+}
+```
+
+**`pluginOptionsObject.triggers`** values represent how the plugin's run function gets invoked. This value should always be an array and can include some or all of these values - just be careful you understand the implications of your plugin being executed multiple times.
+
+- `'manual'` - you want the plugin to be invokable directly by other areas of your website
+- `'immediately'` - run as soon as the plugin is defined _(synchronously)_
+- `'page-load'` - run when the `window`'s `load` event fires
+- `'page-dom-load'` - run when the `document`'s `DOMContentLoaded` event fires
+- `'page-before-unload'` - run when the `window`'s `beforeunload` event fires
+- `'page-unload'` - run when the `window`'s `unload` event fires
+
+With that, looking at the default plugin configuration section, you see that, unless overridden, all plugins will run as soon as they are defined and they will be allowed to be directly invoked.
+
+**pluginRunFn** is your function that will be ran when an trigger event that matches anything in your triggers configuration array happens. This function will always receive a nonconflicting `UIAnalytics` object reference. It's encouraged to use this object directly and not look for `window.UIAnalytics`.
+
+
+
+`UIAnalytics.plugin('your-plugin-name').run()` will get the reference to the defined plugin with the name `'your-plugin-name'` and will directly invoke that plugin if `'manual'` is in its configured triggers (it is by default). When directly calling `run()` on a plugin you can pass arguments to the plugin's function. But note, plugins will always receive the `UIAnalytics` as the first argument - all arguments manually passed in will come after that.
+
+For example:
+
+```
+UIAnalytics.plugin({
+  name: 'user-name-tracker',
+  // we only want this to be run directly
+  triggers: ['manual']
+}, function(UIAnalytics, firstName, lastName){
+  UIAnalytics.track('user-name-change', {
+    newName: firstName + ' ' + lastName
+  })
+});
+
+UIAnalytics.plugin('user-name-tracker').run('Sean', 'Roberts');
+
+```

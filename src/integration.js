@@ -1,4 +1,5 @@
 import { isString, isObject } from './utils/validate'
+import { scopedPubSub } from './utils/pub-sub'
 import { error } from './utils/logger'
 import * as state from './state'
 import * as tracking from './tracking'
@@ -43,68 +44,16 @@ class Integration {
       }
     };
 
-    this.subscriptions = {};
-    this.subscribe = (topic, cb)=>{
-      const topicSubs = this.subscriptions[topic];
-      if(topicSubs && topicSubs.invokeImmediately){
-        this.invokeTopicCb(topic, cb);
-      }else if(topicSubs){
-        topicSubs.push(cb);
-      }else {
-        this.subscriptions[topic] = [cb];
-      }
-      return { _subscriptionCb: cb };
-    };
-    this.unsubscribe = (topic, subscribeReference)=>{
-      if(!topic || !subscribeReference || !subscribeReference._subscriptionCb){
-        // nothing to unsubscribe from
-        return;
-      }
-
-      const topicSubs = this.subscriptions[topic];
-      if(topicSubs){
-        // only remove one reference at a time.
-        let filteredOneReference;
-        this.subscriptions[topic] = topicSubs.filter((subCb) =>{
-          if (!filteredOneReference && subCb === subscribeReference._subscriptionCb) {
-            filteredOneReference = true;
-            return false;
-          }
-          return true;
-        });
-      }
-    };
-    this.publish = (topic, data, options={})=>{
-
-      if(!topic){
-        return;
-      }
-
-      const topicSubs = this.subscriptions[topic];
-
-      if(Array.isArray(topicSubs)){
-        topicSubs.forEach(cb=>this.invokeTopicCb(topic, cb, data))
-      }
-
-      // add the flag that will make the subsequent
-      if(options.invokeNewSubs){
-        this.subscriptions[topic] = topicSubs ? this.subscriptions[topic] : [];
-        this.subscriptions[topic].invokeImmediately = true;
-
-        // TODO: evaluating the need for this
-        // this.subscriptions[topic].invokeData = data;
-      }
-    }
-    this.invokeTopicCb = (topic, cb, data)=>{
-      // TODO: add more useful information to call
-      cb(data);
-    };
-
     this.setGroup = (groupName, groupProperties)=>{
       if(this.definition.setGroup){
         this.definition.setGroup(groupName, groupProperties);
       }
     };
+
+    const pubSub = scopedPubSub(`integration-${this.name}`);
+    this.subscribe = pubSub.subscribe;
+    this.unsubscribe = pubSub.unsubscribe;
+    this.publish = pubSub.publish;
 
     if(definition){
       this.applyDefintion(definition);

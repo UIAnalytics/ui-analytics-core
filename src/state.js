@@ -1,6 +1,7 @@
 const defaultState = ()=>{
   return JSON.parse(JSON.stringify({
     integrations: [],
+    plugins: [],
     tracks: [],
     transforms: [],
     user: null

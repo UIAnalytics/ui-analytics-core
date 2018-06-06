@@ -47,6 +47,90 @@
     return !!f && {}.toString.call(f) === '[object Function]';
   };
 
+  var subscriptions = {};
+
+  var _subscribe = function _subscribe(topic, cb) {
+    var topicSubs = subscriptions[topic];
+    if (topicSubs && topicSubs.invokeImmediately) {
+
+      // TODO: this should be ran async to match the
+      // control flow as if invokeImmediately wasn't set
+      invokeTopicCb(topic, cb);
+    } else if (topicSubs) {
+      topicSubs.push(cb);
+    } else {
+      subscriptions[topic] = [cb];
+    }
+    return { _subscriptionCb: cb };
+  };
+
+  var _unsubscribe = function _unsubscribe(topic, subscribeReference) {
+    if (!topic || !subscribeReference || !subscribeReference._subscriptionCb) {
+      // nothing to unsubscribe from
+      return;
+    }
+
+    var topicSubs = subscriptions[topic];
+    if (topicSubs) {
+      // only remove one reference at a time.
+      var filteredOneReference = void 0;
+      subscriptions[topic] = topicSubs.filter(function (subCb) {
+        if (!filteredOneReference && subCb === subscribeReference._subscriptionCb) {
+          filteredOneReference = true;
+          return false;
+        }
+        return true;
+      });
+    }
+  };
+
+  var _publish = function _publish(topic, data) {
+    var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
+
+    if (!topic) {
+      return;
+    }
+
+    var topicSubs = subscriptions[topic];
+
+    if (Array.isArray(topicSubs)) {
+      topicSubs.forEach(function (cb) {
+        return invokeTopicCb(topic, cb, data);
+      });
+    }
+
+    // add the flag that will make the subsequent
+    if (options.invokeNewSubs) {
+      subscriptions[topic] = topicSubs ? subscriptions[topic] : [];
+      subscriptions[topic].invokeImmediately = true;
+
+      // NOTE: evaluating need. Leaving out to reduce potential of memory leaking
+      // for long living data storing
+      // subscriptions[topic].invokeData = data;
+    }
+  };
+
+  var invokeTopicCb = function invokeTopicCb(topic, cb, data) {
+    cb(data);
+  };
+
+  var scopedPubSub = function scopedPubSub(topicScope) {
+    return {
+      publish: function publish(topic, data) {
+        var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
+        return _publish(topicScope + "-" + topic, data, options);
+      },
+      subscribe: function subscribe(topic, cb) {
+        return _subscribe(topicScope + "-" + topic, cb);
+      },
+      unsubscribe: function unsubscribe(topic, subscribeReference) {
+        return _unsubscribe(topicScope + "-" + topic, subscribeReference);
+      }
+    };
+  };
+
   // TODO: set this default to error and have it configurable
 
   var _logLevel = 'verbose';
@@ -68,6 +152,7 @@
   var defaultState = function defaultState() {
     return JSON.parse(JSON.stringify({
       integrations: [],
+      plugins: [],
       tracks: [],
       transforms: [],
       user: null
@@ -311,72 +396,16 @@
         }
       };
 
-      this.subscriptions = {};
-      this.subscribe = function (topic, cb) {
-        var topicSubs = _this.subscriptions[topic];
-        if (topicSubs && topicSubs.invokeImmediately) {
-          _this.invokeTopicCb(topic, cb);
-        } else if (topicSubs) {
-          topicSubs.push(cb);
-        } else {
-          _this.subscriptions[topic] = [cb];
-        }
-        return { _subscriptionCb: cb };
-      };
-      this.unsubscribe = function (topic, subscribeReference) {
-        if (!topic || !subscribeReference || !subscribeReference._subscriptionCb) {
-          // nothing to unsubscribe from
-          return;
-        }
-
-        var topicSubs = _this.subscriptions[topic];
-        if (topicSubs) {
-          // only remove one reference at a time.
-          var filteredOneReference = void 0;
-          _this.subscriptions[topic] = topicSubs.filter(function (subCb) {
-            if (!filteredOneReference && subCb === subscribeReference._subscriptionCb) {
-              filteredOneReference = true;
-              return false;
-            }
-            return true;
-          });
-        }
-      };
-      this.publish = function (topic, data) {
-        var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-
-
-        if (!topic) {
-          return;
-        }
-
-        var topicSubs = _this.subscriptions[topic];
-
-        if (Array.isArray(topicSubs)) {
-          topicSubs.forEach(function (cb) {
-            return _this.invokeTopicCb(topic, cb, data);
-          });
-        }
-
-        // add the flag that will make the subsequent
-        if (options.invokeNewSubs) {
-          _this.subscriptions[topic] = topicSubs ? _this.subscriptions[topic] : [];
-          _this.subscriptions[topic].invokeImmediately = true;
-
-          // TODO: evaluating the need for this
-          // this.subscriptions[topic].invokeData = data;
-        }
-      };
-      this.invokeTopicCb = function (topic, cb, data) {
-        // TODO: add more useful information to call
-        cb(data);
-      };
-
       this.setGroup = function (groupName, groupProperties) {
         if (_this.definition.setGroup) {
           _this.definition.setGroup(groupName, groupProperties);
         }
       };
+
+      var pubSub = scopedPubSub('integration-' + this.name);
+      this.subscribe = pubSub.subscribe;
+      this.unsubscribe = pubSub.unsubscribe;
+      this.publish = pubSub.publish;
 
       if (definition) {
         this.applyDefintion(definition);
@@ -568,6 +597,180 @@
     return new IntegrationInterface(referencedIntegration);
   }
 
+  var pubSub = scopedPubSub('environment');
+  var publish = pubSub.publish;
+  var windowListener = window.addEventListener;
+
+  var PAGE_LOAD = 'page-load';
+  var DOM_LOADED = 'page-dom-load';
+  var PAGE_UNLOAD = 'page-unload';
+  var BEFORE_PAGE_UNLOAD = 'page-before-unload';
+
+  // 'page-load', 'dom-loaded', 'when-able', 'new-session'
+  // new-session could potentially leverage the existence of a session based cookie or
+  //  we could create a sessions using localstorage that we bump on every page load or something to note interactivity
+
+  // the browser fully loaded HTML, and the DOM tree is built, but external resources like pictures <img> and stylesheets may be not yet loaded.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      publish(DOM_LOADED);
+    });
+  } else {
+    publish(DOM_LOADED);
+  }
+
+  // the browser loaded all resources (images, styles etc).
+  if (document.readyState === 'interactive') {
+    windowListener('load', function () {
+      publish(PAGE_LOAD);
+    });
+  } else if (document.readyState === 'complete') {
+    publish(PAGE_LOAD);
+  }
+
+  windowListener('beforeunload', function () {
+    publish(BEFORE_PAGE_UNLOAD);
+  });
+
+  windowListener('unload', function () {
+    publish(PAGE_UNLOAD);
+  });
+
+  var on = pubSub.subscribe;
+  var off = pubSub.unsubscribe;
+
+  // NOTE: events are referenced in kabab case - forcing us to assign
+  // in a rather verbose way here
+  var events = {};
+  events[PAGE_LOAD] = PAGE_LOAD;
+  events[DOM_LOADED] = DOM_LOADED;
+  events[PAGE_UNLOAD] = PAGE_UNLOAD;
+  events[BEFORE_PAGE_UNLOAD] = BEFORE_PAGE_UNLOAD;
+
+  var pluginDefaults = {
+    name: '',
+    triggers: ['immediately', 'manual'],
+    maxRuns: 1,
+    runCount: 0
+  };
+
+  var Plugin = function Plugin(pluginOptions, pluginRunFn) {
+    var _this = this;
+
+    classCallCheck(this, Plugin);
+
+
+    var _invokeRun = function _invokeRun() {
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      try {
+        pluginRunFn.call.apply(pluginRunFn, [null, libInterface].concat(args));
+      } catch (e) {
+        error('Plugin errored while invoking its run function', e);
+      }
+    };
+
+    this.name = pluginOptions.name;
+
+    // triggers need to be verified and transformed into a duplicate free array of strings
+    this.triggers = Array.isArray(pluginOptions.triggers) ? pluginOptions.triggers : [pluginOptions.triggers];
+
+    this.isDefined = isFunction(pluginRunFn);
+
+    this.run = function () {
+      if (!_this.isDefined) {
+        error('Plugin was attempted to be run but it has not been defined yet');
+      } else if (!_this.triggers.includes('manual')) {
+        error('Plugin was attempted to be run directly but it is not configured to be able to do so.\n          To call directly, a \'manual\' entry needs to be in the plugin triggers field.');
+      } else {
+        _invokeRun.apply(undefined, arguments);
+      }
+    };
+
+    this.triggers.forEach(function (triggerName) {
+
+      // triggers should map directly to envMonitor events
+      // this means that anything we automatically track with
+      // the environment will be something a plugin can be triggered by
+      if (events[triggerName]) {
+        var monitor = on(triggerName, function () {
+
+          _invokeRun();
+
+          // NOTE: this is fine because our current set of events are one time
+          // as that changes we will need to update this to be more aware of that
+          // situation.
+          off(monitor);
+        });
+      }
+    });
+  };
+
+  // The supported signatures of a plugin:
+  // #plugin('pluginName', ()=>{}) = configure plugin - invokable
+  // #plugin({name: 'n', ... }, ()=>{}) = configure plugin - invokable unless triggers specified to not be invokable
+  // #plugin(()=>{}) = configure plugin - not invokable
+  // #plugin('pluginName') = reference plugin
+
+
+  var plugin = function plugin(pluginOptionsOrNameRef, pluginRunFnRef) {
+
+    var pluginNameLookup = isString(pluginOptionsOrNameRef) && !isFunction(pluginRunFnRef) ? pluginOptionsOrNameRef : null;
+    var pluginOptions = void 0;
+    var pluginRunFn = void 0;
+    var pluginInstance = void 0;
+
+    if (pluginNameLookup) {
+      // we are only looking up a plugin
+
+      // NOTE: this does mean that we are currently not going to support
+      // multiple references to plugins that have the same name.
+      pluginInstance = get$1().plugins.filter(function (p) {
+        return p.name === pluginNameLookup;
+      })[0];
+
+      if (!pluginInstance) {
+        pluginInstance = new Plugin(Object.assign({}, pluginDefaults, { name: pluginNameLookup }));
+      }
+    } else {
+
+      if (isFunction(pluginOptionsOrNameRef)) {
+        pluginRunFn = pluginOptionsOrNameRef;
+        pluginOptions = Object.assign({}, pluginDefaults);
+      } else if (isFunction(pluginRunFnRef)) {
+
+        pluginRunFn = pluginRunFnRef;
+
+        if (isString(pluginOptionsOrNameRef)) {
+          pluginOptions = Object.assign({}, pluginDefaults, { name: pluginOptionsOrNameRef });
+        } else if (isObject(pluginOptionsOrNameRef)) {
+          pluginOptions = Object.assign({}, pluginDefaults, pluginOptionsOrNameRef);
+        } else {
+          pluginOptions = Object.assign({}, pluginDefaults);
+        }
+      } else {
+        error('a plugin was attempted to be created but it did not supply a plugin run function as a second argument to the .plugin() function');
+        return;
+      }
+
+      pluginInstance = new Plugin(pluginOptions, pluginRunFn);
+
+      set$1({
+        plugins: get$1().plugins.concat([pluginInstance])
+      });
+
+      // if this plugin is currently being defined properly
+      // let's run through any initializing properties
+      if (pluginInstance.isDefined && pluginInstance.triggers.includes('immediately')) {
+        pluginInstance.run();
+      }
+    }
+
+    return pluginInstance;
+  };
+
   var transform = function transform(transformCb) {
     if (!isFunction(transformCb)) {
       error('transform was called without a function as the first argument');
@@ -588,6 +791,7 @@
       clearAllUserSessions: clearAllUserSessions,
       identifyUser: identifyUser,
       integration: integration,
+      plugin: plugin,
       track: track,
       trackPage: trackPage,
       transformEvents: transform,
